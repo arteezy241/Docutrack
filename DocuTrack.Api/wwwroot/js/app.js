@@ -1,4 +1,4 @@
-const API = 'http://localhost:5225/api';
+const API = 'https://docutrack-production.up.railway.app/api';
 
 let allDocs = [];
 let allUsers = [];
