@@ -37,30 +37,18 @@ var app = builder.Build();
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
 // Configure the HTTP request pipeline.
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "DocuTrack API v1");
+    c.RoutePrefix = "swagger";
+});
+app.UseCors("DevCorsPolicy");
+
 if (app.Environment.IsDevelopment())
 {
-    // Using Swashbuckle (UseSwagger + UseSwaggerUI) instead of Microsoft.AspNetCore.OpenApi
-
-    // enable Swagger UI at /swagger
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DocuTrack API v1");
-        c.RoutePrefix = "swagger"; // serve UI at /swagger
-    });
-
-    // Enable permissive CORS in development
-    app.UseCors("DevCorsPolicy");
-
-    // redirect /swagger to the UI index for convenience
-    app.MapGet("/swagger", ctx =>
-    {
-        ctx.Response.Redirect("/swagger/index.html", false);
-        return System.Threading.Tasks.Task.CompletedTask;
-    });
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseCors("DevCorsPolicy");
