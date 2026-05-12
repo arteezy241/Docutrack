@@ -34,6 +34,12 @@ builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(
 });
 
 var app = builder.Build();
+// Auto-create database on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DocuTrack.Infrastructure.Data.DocuTrackDbContext>();
+    db.Database.EnsureCreated();
+}
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
 // Configure the HTTP request pipeline.
