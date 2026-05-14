@@ -297,46 +297,32 @@ async function deleteDept(id) {
 
 // ─── SETTINGS ──────────────────────────────────────────────
 function renderSettings() {
-    document.getElementById('settings-list').innerHTML = settings.map((s, i) => {
-        return `<div class="setting-item">
-        <span class="setting-label">${s}</span>
-        <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" data-name="${s}" data-index="${i}"></button>
-      </div>`;
-    }).join('');
-
-    // Add event listeners after rendering
-    document.querySelectorAll('.toggle').forEach(btn => {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            const name = this.dataset.name;
-            const index = parseInt(this.dataset.index);
-            window.toggleSetting(name, index);
-        });
-    });
+    const list = document.getElementById('settings-list');
+    list.innerHTML = settings.map((s, i) => `
+    <div class="setting-item" onclick="handleSettingClick('${s}', ${i})">
+      <span class="setting-label">${s}</span>
+      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}"></button>
+    </div>
+  `).join('');
 }
 
-let inactivityTimer = null;
-
-window.toggleSetting = function (name, index) {
+function handleSettingClick(name, index) {
     if (name === 'Email Notifications') {
         if (!settingsState[name]) {
             settingsState[name] = true;
+            document.getElementById('toggle-' + index).classList.add('on');
             document.getElementById('emailModal').classList.add('open');
         } else {
             settingsState[name] = false;
+            document.getElementById('toggle-' + index).classList.remove('on');
             localStorage.removeItem('notifEmail');
-            const btn = document.getElementById('toggle-' + index);
-            if (btn) btn.classList.remove('on');
             showToast('Email notifications disabled', '');
         }
         return;
     }
 
     settingsState[name] = !settingsState[name];
-    const btn = document.getElementById('toggle-' + index);
-    if (btn) btn.classList.toggle('on', settingsState[name]);
-
-// rest of the function stays the same...
+    document.getElementById('toggle-' + index).classList.toggle('on', settingsState[name]);
 
     if (name === 'Dark Mode') {
         document.body.classList.toggle('dark-mode', settingsState[name]);
@@ -369,6 +355,8 @@ window.toggleSetting = function (name, index) {
         }
     }
 }
+
+let inactivityTimer = null;
 
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
@@ -808,5 +796,5 @@ function saveEmailNotif() {
 }
 // ─── INITIAL LOAD ──────────────────────────────────────────
 loadDashboard();
-renderSettings();
+
 registerPush();
