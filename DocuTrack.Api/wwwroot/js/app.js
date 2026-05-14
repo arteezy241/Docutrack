@@ -326,6 +326,7 @@ window.toggleSetting = function (name) {
 
     settingsState[name] = !settingsState[name];
     const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
+    console.log('Toggle btn:', 'toggle-' + name.replace(/\s/g, '-'), btn);
     if (btn) btn.classList.toggle('on', settingsState[name]);
 
     if (name === 'Dark Mode') {
