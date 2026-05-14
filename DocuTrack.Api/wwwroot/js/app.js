@@ -312,18 +312,17 @@ window.toggleSetting = function (name) {
 
     if (name === 'Email Notifications') {
         if (settingsState[name]) {
-            const email = prompt('Enter your email address for notifications:');
-            if (email) {
-                localStorage.setItem('notifEmail', email);
-                showToast('Email notifications enabled for ' + email, 'success');
-            } else {
-                settingsState[name] = false;
-                btn.classList.remove('on');
-            }
+            document.getElementById('emailModal').classList.add('open');
         } else {
             localStorage.removeItem('notifEmail');
             showToast('Email notifications disabled', '');
         }
+    
+        } else {
+            localStorage.removeItem('notifEmail');
+            showToast('Email notifications disabled', '');
+        }
+    
     }
     if (name === 'Dark Mode') {
     document.body.classList.toggle('dark-mode', settingsState[name]);
@@ -779,7 +778,20 @@ async function triggerWorkflow(docId) {
         showToast('API error', 'error');
     }
 }
+function cancelEmailNotif() {
+    settingsState['Email Notifications'] = false;
+    const btn = document.getElementById('toggle-Email-Notifications');
+    if (btn) btn.classList.remove('on');
+    closeModal('emailModal');
+}
 
+function saveEmailNotif() {
+    const email = document.getElementById('notif-email-input').value;
+    if (!email) return showToast('Email is required', 'error');
+    localStorage.setItem('notifEmail', email);
+    showToast('Email notifications enabled for ' + email, 'success');
+    closeModal('emailModal');
+}
 // ─── INITIAL LOAD ──────────────────────────────────────────
 loadDashboard();
 renderSettings();
