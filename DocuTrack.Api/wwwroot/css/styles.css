@@ -671,17 +671,20 @@ body.dark-mode .user-dropdown-item:hover { background: var(--bg); }
 body.dark-mode .modal,
 body.dark-mode .detail-panel { background: var(--surface); }
 
-body.dark-mode .modal-title,
-body.dark-mode .form-label,
-body.dark-mode .setting-label {
-    color: var(--text);
+body.dark-mode .toast {
+    background: var(--text);
+    color: var(--bg);
 }
 
-body.dark-mode .btn-secondary {
-    color: var(--text-muted);
-    border-color: var(--border);
-    background: var(--surface);
-}
+    body.dark-mode .toast.success {
+        background: var(--green);
+        color: white;
+    }
+
+    body.dark-mode .toast.error {
+        background: var(--red);
+        color: white;
+    }
 body.dark-mode .modal-overlay {
     background: rgba(0,0,0,0.6);
 }
