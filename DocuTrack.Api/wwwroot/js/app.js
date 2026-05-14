@@ -310,55 +310,55 @@ function renderSettings() {
 let inactivityTimer = null;
 
 window.toggleSetting = function (name) {
-  settingsState[name] = !settingsState[name];
-  const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
-  btn.classList.toggle('on', settingsState[name]);
-
     if (name === 'Email Notifications') {
-        if (settingsState[name]) {
+        if (!settingsState[name]) {
+            settingsState[name] = true;
             document.getElementById('emailModal').classList.add('open');
         } else {
+            settingsState[name] = false;
             localStorage.removeItem('notifEmail');
+            const btn = document.getElementById('toggle-Email-Notifications');
+            if (btn) btn.classList.remove('on');
             showToast('Email notifications disabled', '');
         }
-    
-        } else {
-            localStorage.removeItem('notifEmail');
-            showToast('Email notifications disabled', '');
-        }
-    
+        return;
     }
+
+    settingsState[name] = !settingsState[name];
+    const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
+    if (btn) btn.classList.toggle('on', settingsState[name]);
+
     if (name === 'Dark Mode') {
-    document.body.classList.toggle('dark-mode', settingsState[name]);
-    showToast(settingsState[name] ? 'Dark mode on' : 'Dark mode off', 'success');
-  }
-
-  if (name === 'Automatically Logout after Inactivity') {
-    if (settingsState[name]) {
-      showToast('Auto logout enabled — 2 mins inactivity', 'success');
-      resetInactivityTimer();
-      document.addEventListener('mousemove', resetInactivityTimer);
-      document.addEventListener('keypress', resetInactivityTimer);
-      document.addEventListener('click', resetInactivityTimer);
-    } else {
-      clearTimeout(inactivityTimer);
-      document.removeEventListener('mousemove', resetInactivityTimer);
-      document.removeEventListener('keypress', resetInactivityTimer);
-      document.removeEventListener('click', resetInactivityTimer);
-      showToast('Auto logout disabled', '');
+        document.body.classList.toggle('dark-mode', settingsState[name]);
+        showToast(settingsState[name] ? 'Dark mode on' : 'Dark mode off', 'success');
     }
-  }
 
-  if (name === 'Highlight Recently Updated Documents') {
-    if (settingsState[name]) {
-      highlightRecentDocs();
-      showToast('Highlighting recently updated docs', 'success');
-    } else {
-      document.querySelectorAll('.recent-highlight').forEach(el => el.classList.remove('recent-highlight'));
-      showToast('Highlight disabled', '');
+    if (name === 'Automatically Logout after Inactivity') {
+        if (settingsState[name]) {
+            showToast('Auto logout enabled — 2 mins inactivity', 'success');
+            resetInactivityTimer();
+            document.addEventListener('mousemove', resetInactivityTimer);
+            document.addEventListener('keypress', resetInactivityTimer);
+            document.addEventListener('click', resetInactivityTimer);
+        } else {
+            clearTimeout(inactivityTimer);
+            document.removeEventListener('mousemove', resetInactivityTimer);
+            document.removeEventListener('keypress', resetInactivityTimer);
+            document.removeEventListener('click', resetInactivityTimer);
+            showToast('Auto logout disabled', '');
+        }
     }
-  }
 
+    if (name === 'Highlight Recently Updated Documents') {
+        if (settingsState[name]) {
+            highlightRecentDocs();
+            showToast('Highlighting recently updated docs', 'success');
+        } else {
+            document.querySelectorAll('.recent-highlight').forEach(el => el.classList.remove('recent-highlight'));
+            showToast('Highlight disabled', '');
+        }
+    }
+}
 
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
