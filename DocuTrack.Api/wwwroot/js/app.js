@@ -302,9 +302,19 @@ function renderSettings() {
     document.getElementById('settings-list').innerHTML = settings.map((s, i) => {
         return `<div class="setting-item">
         <span class="setting-label">${s}</span>
-        <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" onclick="event.stopPropagation(); window.toggleSetting(this.dataset.name, ${i})" data-name="${s}"></button>
+        <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" data-name="${s}" data-index="${i}"></button>
       </div>`;
     }).join('');
+
+    // Add event listeners after rendering
+    document.querySelectorAll('.toggle').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const name = this.dataset.name;
+            const index = parseInt(this.dataset.index);
+            window.toggleSetting(name, index);
+        });
+    });
 }
 
 let inactivityTimer = null;
