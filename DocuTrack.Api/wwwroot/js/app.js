@@ -299,17 +299,17 @@ async function deleteDept(id) {
 
 // ─── SETTINGS ──────────────────────────────────────────────
 function renderSettings() {
-    document.getElementById('settings-list').innerHTML = settings.map(s => `
+    document.getElementById('settings-list').innerHTML = settings.map((s, i) => `
     <div class="setting-item">
       <span class="setting-label">${s}</span>
-      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${s.replace(/\s/g, '-')}" onclick="event.stopPropagation(); window.toggleSetting(&quot;${s}&quot;)"></button>
+      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" onclick="event.stopPropagation(); window.toggleSetting(&quot;${s}&quot;, ${i})"></button>
     </div>
   `).join('');
 }
 
 let inactivityTimer = null;
 
-window.toggleSetting = function (name) {
+window.toggleSetting = function (name, index) {
     if (name === 'Email Notifications') {
         if (!settingsState[name]) {
             settingsState[name] = true;
@@ -317,7 +317,7 @@ window.toggleSetting = function (name) {
         } else {
             settingsState[name] = false;
             localStorage.removeItem('notifEmail');
-            const btn = document.getElementById('toggle-Email-Notifications');
+            const btn = document.getElementById('toggle-' + index);
             if (btn) btn.classList.remove('on');
             showToast('Email notifications disabled', '');
         }
@@ -325,9 +325,10 @@ window.toggleSetting = function (name) {
     }
 
     settingsState[name] = !settingsState[name];
-    const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
-    console.log('Toggle btn:', 'toggle-' + name.replace(/\s/g, '-'), btn);
+    const btn = document.getElementById('toggle-' + index);
     if (btn) btn.classList.toggle('on', settingsState[name]);
+
+// rest of the function stays the same...
 
     if (name === 'Dark Mode') {
         document.body.classList.toggle('dark-mode', settingsState[name]);
