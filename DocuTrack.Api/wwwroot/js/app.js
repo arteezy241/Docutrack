@@ -299,12 +299,12 @@ async function deleteDept(id) {
 
 // ─── SETTINGS ──────────────────────────────────────────────
 function renderSettings() {
-    document.getElementById('settings-list').innerHTML = settings.map((s, i) => `
-    <div class="setting-item">
-      <span class="setting-label">${s}</span>
-      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" onclick="event.stopPropagation(); window.toggleSetting(&quot;${s}&quot;, ${i})"></button>
-    </div>
-  `).join('');
+    document.getElementById('settings-list').innerHTML = settings.map((s, i) => {
+        return `<div class="setting-item">
+        <span class="setting-label">${s}</span>
+        <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${i}" onclick="event.stopPropagation(); window.toggleSetting(this.dataset.name, ${i})" data-name="${s}"></button>
+      </div>`;
+    }).join('');
 }
 
 let inactivityTimer = null;
