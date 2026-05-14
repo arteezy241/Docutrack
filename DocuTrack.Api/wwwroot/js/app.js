@@ -20,6 +20,10 @@ const settings = [
 const settingsState = {};
 settings.forEach(s => settingsState[s] = false);
 
+if (localStorage.getItem('notifEmail')) {
+    settingsState['Email Notifications'] = true;
+}
+
 // ─── SIDEBAR ───────────────────────────────────────────────
 function toggleSidebar() {
   document.querySelector('.sidebar').classList.toggle('open');
@@ -298,7 +302,7 @@ function renderSettings() {
     document.getElementById('settings-list').innerHTML = settings.map(s => `
     <div class="setting-item">
       <span class="setting-label">${s}</span>
-      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${s.replace(/\s/g, '-')}" onclick="window.toggleSetting('${s}')"></button>
+      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${s.replace(/\s/g, '-')}" onclick="event.stopPropagation(); window.toggleSetting('${s}')"></button>
     </div>
   `).join('');
 }
