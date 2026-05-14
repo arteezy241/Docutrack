@@ -295,10 +295,10 @@ async function deleteDept(id) {
 
 // ─── SETTINGS ──────────────────────────────────────────────
 function renderSettings() {
-  document.getElementById('settings-list').innerHTML = settings.map(s => `
-    <div class="setting-item" onclick="toggleSetting('${s}')">
+    document.getElementById('settings-list').innerHTML = settings.map(s => `
+    <div class="setting-item">
       <span class="setting-label">${s}</span>
-      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${s.replace(/\s/g, '-')}"></button>
+      <button class="toggle ${settingsState[s] ? 'on' : ''}" id="toggle-${s.replace(/\s/g, '-')}" onclick="window.toggleSetting('${s}')"></button>
     </div>
   `).join('');
 }
