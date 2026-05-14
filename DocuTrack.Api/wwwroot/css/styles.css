@@ -671,6 +671,14 @@ body.dark-mode .user-dropdown-item:hover { background: var(--bg); }
 body.dark-mode .modal,
 body.dark-mode .detail-panel { background: var(--surface); }
 
+body.dark-mode .modal-overlay {
+    background: rgba(0,0,0,0.6);
+}
+
+body.dark-mode .setting-item:hover {
+    background: var(--bg);
+}
+
 body.dark-mode .form-input,
 body.dark-mode .form-textarea { background: var(--bg); color: var(--text); border-color: var(--border); }
 
