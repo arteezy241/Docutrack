@@ -305,7 +305,7 @@ function renderSettings() {
 
 let inactivityTimer = null;
 
-function toggleSetting(name) {
+window.toggleSetting = function (name) {
   settingsState[name] = !settingsState[name];
   const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
   btn.classList.toggle('on', settingsState[name]);
