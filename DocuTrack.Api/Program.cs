@@ -20,6 +20,7 @@ builder.Services.AddCors(options =>
 });
 
 // Add controllers
+builder.Services.AddSingleton<DocuTrack.Api.Services.EmailService>();
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {

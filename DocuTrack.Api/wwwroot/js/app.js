@@ -198,7 +198,20 @@ async function submitRouting() {
     });
     if (res.ok) {
       showToast('Document routed successfully!', 'success');
-      sendPushToAll('Document Routed', 'A document status has been updated in DocuTrack.');
+        sendPushToAll('Document Routed', 'A document status has been updated in DocuTrack.');
+        // Send email notification if enabled
+        const notifEmail = localStorage.getItem('notifEmail');
+        if (notifEmail) {
+            fetch(`${API}/push/email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    toEmail: notifEmail,
+                    subject: 'DocuTrack - Document Routed',
+                    body: `<h2>Document Status Updated</h2><p>A document has been routed in DocuTrack.</p><p><strong>Note:</strong> ${note || 'No note provided'}</p><p>Login to DocuTrack to view the full details.</p><br/><a href="https://docutrack-production.up.railway.app">Open DocuTrack</a>`
+                })
+            });
+        }
       loadAuditLog();
     } else {
       showToast('Failed to route document', 'error');
@@ -297,7 +310,22 @@ function toggleSetting(name) {
   const btn = document.getElementById('toggle-' + name.replace(/\s/g, '-'));
   btn.classList.toggle('on', settingsState[name]);
 
-  if (name === 'Dark Mode') {
+    if (name === 'Email Notifications') {
+        if (settingsState[name]) {
+            const email = prompt('Enter your email address for notifications:');
+            if (email) {
+                localStorage.setItem('notifEmail', email);
+                showToast('Email notifications enabled for ' + email, 'success');
+            } else {
+                settingsState[name] = false;
+                btn.classList.remove('on');
+            }
+        } else {
+            localStorage.removeItem('notifEmail');
+            showToast('Email notifications disabled', '');
+        }
+    }
+    if (name === 'Dark Mode') {
     document.body.classList.toggle('dark-mode', settingsState[name]);
     showToast(settingsState[name] ? 'Dark mode on' : 'Dark mode off', 'success');
   }

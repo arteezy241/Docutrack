@@ -127,6 +127,35 @@ namespace DocuTrack.Api.Controllers
             var subs = await _db.PushSubscriptions.ToListAsync();
             return Ok(subs);
         }
+        public class SendEmailDto
+        {
+            public string ToEmail { get; set; } = string.Empty;
+            public string Subject { get; set; } = string.Empty;
+            public string Body { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// Sends an email notification.
+        /// </summary>
+        [HttpPost("email")]
+        public async Task<IActionResult> SendEmail(
+            [FromBody] SendEmailDto dto,
+            [FromServices] DocuTrack.Api.Services.EmailService emailService)
+        {
+            if (string.IsNullOrEmpty(dto.ToEmail))
+                return BadRequest(new { error = "Email is required." });
+
+            try
+            {
+                await emailService.SendEmailAsync(dto.ToEmail, dto.Subject, dto.Body);
+                return Ok(new { message = "Email sent successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
+
 
 }
