@@ -20,9 +20,7 @@ const settings = [
 const settingsState = {};
 settings.forEach(s => settingsState[s] = false);
 
-if (localStorage.getItem('notifEmail')) {
-    settingsState['Email Notifications'] = true;
-}
+
 
 // ─── SIDEBAR ───────────────────────────────────────────────
 function toggleSidebar() {
