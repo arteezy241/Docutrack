@@ -3,6 +3,7 @@ using System;
 using DocuTrack.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocuTrack.Infrastructure.Migrations
 {
     [DbContext(typeof(DocuTrackDbContext))]
-    partial class DocuTrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260514074656_AddUserDepartment")]
+    partial class AddUserDepartment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");

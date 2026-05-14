@@ -69,5 +69,39 @@ namespace DocuTrack.Api.Controllers
             var users = await _db.Users.AsNoTracking().ToListAsync();
             return Ok(users);
         }
+        /// <summary>
+        /// Deletes a user.
+        /// </summary>
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound();
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Assigns a user to a department.
+        /// </summary>
+        [HttpPatch("{id:guid}/department")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> AssignDepartment(Guid id, [FromBody] AssignDepartmentDto dto)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound();
+            user.DepartmentId = dto.DepartmentId;
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        public class AssignDepartmentDto
+        {
+            public Guid? DepartmentId { get; set; }
+        }
     }
 }

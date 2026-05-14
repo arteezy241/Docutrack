@@ -47,6 +47,10 @@ namespace DocuTrack.Infrastructure.Data
             modelBuilder.Entity<User>(b =>
             {
                 b.HasKey(u => u.Id);
+                b.HasOne(u => u.Department)
+                 .WithMany(d => d.Users)
+                 .HasForeignKey(u => u.DepartmentId)
+                 .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<RoutingEvent>(b =>

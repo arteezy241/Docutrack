@@ -119,27 +119,73 @@ async function loadDocumentsPage() {
 
 // ─── USERS ─────────────────────────────────────────────────
 async function loadUsersPage() {
-  document.getElementById('users-grid').innerHTML = '<div class="loading">Loading...</div>';
-  try {
-    const res = await fetch(`${API}/Users`);
-    allUsers = await res.json();
-    if (!allUsers.length) {
-      document.getElementById('users-grid').innerHTML = `<div class="empty-state"><p>No users yet.</p></div>`;
-      return;
-    }
-    document.getElementById('users-grid').innerHTML = allUsers.map(u => `
+    document.getElementById('users-grid').innerHTML = '<div class="loading">Loading...</div>';
+    try {
+        const [usersRes, deptsRes] = await Promise.all([
+            fetch(`${API}/Users`),
+            fetch(`${API}/Departments`)
+        ]);
+        allUsers = await usersRes.json();
+        const depts = await deptsRes.json();
+
+        if (!allUsers.length) {
+            document.getElementById('users-grid').innerHTML = `<div class="empty-state"><p>No users yet.</p></div>`;
+            return;
+        }
+
+        document.getElementById('users-grid').innerHTML = allUsers.map(u => `
       <div class="user-card">
         <div class="user-card-avatar">${(u.fullName || u.username || '?')[0].toUpperCase()}</div>
-        <div>
+        <div style="flex:1">
           <div class="user-card-name">${u.fullName || '—'}</div>
           <div class="user-card-email">${u.email || '—'}</div>
           <div class="user-card-username">@${u.username || '—'}</div>
+          <div style="margin-top:8px">
+            <select onchange="assignDepartment('${u.id}', this.value)" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);width:100%">
+              <option value="">No Department</option>
+              ${depts.map(d => `<option value="${d.id}" ${u.departmentId === d.id ? 'selected' : ''}>${d.name}</option>`).join('')}
+            </select>
+          </div>
         </div>
+        <button onclick="deleteUser('${u.id}')" style="background:var(--red-bg);color:var(--red);border:none;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;align-self:flex-start">Delete</button>
       </div>
     `).join('');
-  } catch (e) {
-    document.getElementById('users-grid').innerHTML = `<div class="empty-state"><p>Failed to load users.</p></div>`;
-  }
+    } catch (e) {
+        document.getElementById('users-grid').innerHTML = `<div class="empty-state"><p>Failed to load users.</p></div>`;
+    }
+}
+
+async function assignDepartment(userId, departmentId) {
+    try {
+        const res = await fetch(`${API}/Users/${userId}/department`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ departmentId: departmentId || null })
+        });
+        if (res.ok) {
+            showToast('Department updated!', 'success');
+            loadUsersPage();
+        } else {
+            showToast('Failed to update department', 'error');
+        }
+    } catch (e) {
+        showToast('API error', 'error');
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Delete this user? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API}/Users/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast('User deleted!', 'success');
+            loadUsersPage();
+        } else {
+            showToast('Failed to delete user', 'error');
+        }
+    } catch (e) {
+        showToast('API error', 'error');
+    }
 }
 
 // ─── ROUTING ───────────────────────────────────────────────
