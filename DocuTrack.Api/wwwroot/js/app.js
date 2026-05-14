@@ -354,7 +354,7 @@ window.toggleSetting = function (name) {
       showToast('Highlight disabled', '');
     }
   }
-}
+
 
 function resetInactivityTimer() {
   clearTimeout(inactivityTimer);
