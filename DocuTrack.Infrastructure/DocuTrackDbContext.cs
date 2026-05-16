@@ -76,7 +76,8 @@ namespace DocuTrack.Infrastructure.Data
             {
                 b.HasKey(d => d.Id);
                 b.HasMany(d => d.Users)
-                 .WithOne()
+                 .WithOne(u => u.Department)
+                 .HasForeignKey(u => u.DepartmentId)
                  .OnDelete(DeleteBehavior.SetNull);
             });
         }
