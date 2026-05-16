@@ -1,17 +1,11 @@
-
 using Microsoft.EntityFrameworkCore;
-
-
 
 var builder = WebApplication.CreateBuilder(args);
 
-
-
-
-// Add services to the container.
+// OpenAPI
 builder.Services.AddOpenApi();
 
-// CORS for development - allow any origin/header/method
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCorsPolicy", policy =>
@@ -22,8 +16,9 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add controllers
+// Email Service
 builder.Services.AddSingleton<DocuTrack.Api.Services.EmailService>();
+
 // JWT Authentication
 builder.Services.AddAuthentication(options =>
 {
@@ -46,14 +41,14 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
-        // prevent possible reference cycles when returning entities with navigation props
         opts.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 
-// Register DbContext (use same SQLite file as design-time factory)
+// Database
 builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(options =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
@@ -75,7 +70,8 @@ builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(
 });
 
 var app = builder.Build();
-// Auto-create database on startup
+
+// Auto-migrate on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DocuTrack.Infrastructure.Data.DocuTrackDbContext>();
@@ -83,7 +79,6 @@ using (var scope = app.Services.CreateScope())
     conn.Open();
     using var cmd = conn.CreateCommand();
 
-    // Add missing auth columns if they don't exist
     var alterCommands = new[]
     {
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
@@ -104,34 +99,20 @@ using (var scope = app.Services.CreateScope())
     }
 
     conn.Close();
-
-    // Now migrate
     try { db.Database.Migrate(); } catch { }
 }
+
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
-// Configure the HTTP request pipeline.
-app.MapOpenApi();
-app.MapGet("/swagger", () => Results.Redirect("/swagger/index.html"));
-app.UseStaticFiles();
+// Middleware pipeline — ORDER MATTERS
 app.UseCors("DevCorsPolicy");
-
-
-    app.UseHttpsRedirection();
-
-
-var defaultFilesOptions = new DefaultFilesOptions();
-defaultFilesOptions.DefaultFileNames.Clear();
-defaultFilesOptions.DefaultFileNames.Add("index.html");
-app.UseDefaultFiles(defaultFilesOptions);
+app.UseDefaultFiles();
 app.UseStaticFiles();
+app.MapOpenApi();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("DevCorsPolicy");
 
-
-// DocuTrack v2 - JWT Auth
-
+// Swagger UI
 var docsHtml = """
 <!DOCTYPE html>
 <html>
@@ -156,6 +137,7 @@ var docsHtml = """
 """;
 
 app.MapGet("/docs", () => Results.Content(docsHtml, "text/html"));
+app.MapGet("/mobile", async context => context.Response.Redirect("/mobile.html", false));
 app.MapControllers();
 
 app.Run();
