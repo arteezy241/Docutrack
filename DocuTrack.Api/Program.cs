@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 // Add services to the container.
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 // CORS for development - allow any origin/header/method
 builder.Services.AddCors(options =>
@@ -109,10 +109,10 @@ using (var scope = app.Services.CreateScope())
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
 // Configure the HTTP request pipeline.
-app.UseSwagger();
+app.MapOpenApi();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "DocuTrack API v1");
+    c.SwaggerEndpoint("/openapi/v1.json", "DocuTrack API v1");
     c.RoutePrefix = "swagger";
 });
 app.UseCors("DevCorsPolicy");
