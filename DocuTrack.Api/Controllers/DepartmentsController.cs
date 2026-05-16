@@ -30,7 +30,10 @@ namespace DocuTrack.Api.Controllers
         [ProducesResponseType(typeof(IEnumerable<Department>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<Department>>> GetAll()
         {
-            var departments = await _db.Departments.AsNoTracking().ToListAsync();
+            var departments = await _db.Departments
+                .Include(d => d.Users)
+                .AsNoTracking()
+                .ToListAsync();
             return Ok(departments);
         }
 
