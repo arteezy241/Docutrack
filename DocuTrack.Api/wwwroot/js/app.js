@@ -314,6 +314,7 @@ async function createDepartment() {
     });
     if (res.ok) {
       showToast('Department created!', 'success');
+      sendPushToAll('New Department Added', 'Department "' + name + '" has been created in DocuTrack.');
       closeModal('newDeptModal');
       document.getElementById('dept-name').value = '';
       document.getElementById('dept-desc').value = '';
@@ -456,6 +457,7 @@ async function createDocument() {
     });
     if (res.ok) {
       showToast('Document created!', 'success');
+      sendPushToAll('New Document Created', 'A new document "' + title + '" has been added to DocuTrack.');
       closeModal('newDocModal');
       document.getElementById('doc-title').value = '';
       document.getElementById('doc-content').value = '';
@@ -482,6 +484,7 @@ async function createUser() {
     });
     if (res.ok) {
       showToast('User created!', 'success');
+      sendPushToAll('New User Added', 'User "' + fullName + '" has been added to DocuTrack.');
       closeModal('newUserModal');
       document.getElementById('user-fullname').value = '';
       document.getElementById('user-username').value = '';
