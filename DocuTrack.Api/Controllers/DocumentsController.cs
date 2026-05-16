@@ -7,12 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DocuTrack.Core.Models;
 using DocuTrack.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DocuTrack.Api.Controllers
 {
     /// <summary>
     /// Manage documents.
     /// </summary>
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]

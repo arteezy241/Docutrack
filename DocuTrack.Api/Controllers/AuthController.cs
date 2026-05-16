@@ -1,11 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿
+using DocuTrack.Core.Models;
+using DocuTrack.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using DocuTrack.Core.Models;
-using DocuTrack.Infrastructure.Data;
+
+
 
 namespace DocuTrack.Api.Controllers
 {
@@ -154,6 +158,8 @@ namespace DocuTrack.Api.Controllers
         /// <summary>
         /// Generate a QR login token.
         /// </summary>
+        /// 
+        [Authorize]
         [HttpPost("qr-generate")]
         public async Task<IActionResult> GenerateQrToken([FromBody] Microsoft.AspNetCore.Mvc.ModelBinding.BindingInfo? _ = null)
         {

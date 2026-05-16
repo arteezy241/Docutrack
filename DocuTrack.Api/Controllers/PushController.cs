@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using WebPush;
 using DocuTrack.Infrastructure.Data;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DocuTrack.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/push")]
     [Produces("application/json")]

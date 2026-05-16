@@ -2,9 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using DocuTrack.Core.Models;
 using DocuTrack.Infrastructure.Data;
-
+using Microsoft.AspNetCore.Authorization;
 namespace DocuTrack.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/audit")]
     [Produces("application/json")]
