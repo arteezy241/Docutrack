@@ -31,7 +31,21 @@ builder.Services.AddControllers()
 // Register DbContext (use same SQLite file as design-time factory)
 builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(options =>
 {
-    options.UseSqlite("Data Source=docutrack.db");
+    var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? "Data Source=docutrack.db";
+
+    if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
+    {
+        // Convert Railway PostgreSQL URL to Npgsql format
+        var uri = new Uri(connectionString);
+        var userInfo = uri.UserInfo.Split(':');
+        connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseSqlite(connectionString);
+    }
 });
 
 var app = builder.Build();
