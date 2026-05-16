@@ -130,9 +130,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("DevCorsPolicy");
 
-app.MapControllers();
 
-app.Run();
 // DocuTrack v2 - JWT Auth
 
 var docsHtml = """
@@ -159,3 +157,6 @@ var docsHtml = """
 """;
 
 app.MapGet("/docs", () => Results.Content(docsHtml, "text/html"));
+app.MapControllers();
+
+app.Run();
