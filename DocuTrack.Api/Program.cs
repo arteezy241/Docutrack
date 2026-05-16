@@ -54,11 +54,10 @@ builder.Services.AddControllers()
 builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(options =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? "Data Source=docutrack.db";
+        ?? "Data Source=docutrack.db";
 
     if (connectionString.StartsWith("postgresql://") || connectionString.StartsWith("postgres://"))
     {
-        // Convert Railway PostgreSQL URL to Npgsql format
         var uri = new Uri(connectionString);
         var userInfo = uri.UserInfo.Split(':');
         connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
@@ -68,6 +67,8 @@ builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(
     {
         options.UseSqlite(connectionString);
     }
+
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
 });
 
 var app = builder.Build();
