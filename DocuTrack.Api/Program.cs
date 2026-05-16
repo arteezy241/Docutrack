@@ -81,16 +81,40 @@ using (var scope = app.Services.CreateScope())
     {
         db.Database.Migrate();
     }
-    catch (Exception ex) when (ex.Message.Contains("already exists"))
+    catch (Exception)
     {
-        // Tables already exist from EnsureCreated — mark all migrations as applied
-        var appliedMigrations = db.Database.GetAppliedMigrations().ToList();
-        var pendingMigrations = db.Database.GetPendingMigrations().ToList();
+        // Tables already exist — add missing columns manually
+        var conn = db.Database.GetDbConnection();
+        conn.Open();
+        using var cmd = conn.CreateCommand();
 
-        foreach (var migration in pendingMigrations)
+        var alterCommands = new[]
         {
-            db.Database.ExecuteSqlRaw($"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('{migration}', '10.0.0')");
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Role\" text",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsEmailVerified\" boolean NOT NULL DEFAULT false",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"EmailVerificationOtp\" text",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"OtpExpiry\" timestamp with time zone",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginToken\" text",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginExpiry\" timestamp with time zone",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
+        };
+
+        foreach (var sql in alterCommands)
+        {
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
         }
+
+        // Mark pending migrations as applied
+        foreach (var migration in db.Database.GetPendingMigrations().ToList())
+        {
+            cmd.CommandText = $"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('{migration}', '10.0.0') ON CONFLICT DO NOTHING";
+            cmd.ExecuteNonQuery();
+        }
+
+        conn.Close();
     }
 }
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
