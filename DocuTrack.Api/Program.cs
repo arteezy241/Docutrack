@@ -116,10 +116,9 @@ app.MapGet("/swagger", () => Results.Redirect("/swagger/index.html"));
 app.UseStaticFiles();
 app.UseCors("DevCorsPolicy");
 
-if (app.Environment.IsDevelopment())
-{
+
     app.UseHttpsRedirection();
-}
+
 
 var defaultFilesOptions = new DefaultFilesOptions();
 defaultFilesOptions.DefaultFileNames.Clear();
