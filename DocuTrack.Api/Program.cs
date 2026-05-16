@@ -1,6 +1,7 @@
 
 using Microsoft.EntityFrameworkCore;
-DocuTrack.Api.VapidKeys.Generate();
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
