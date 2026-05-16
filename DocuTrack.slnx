@@ -2,5 +2,4 @@
   <Project Path="DocuTrack.Api/DocuTrack.Api.csproj" />
   <Project Path="DocuTrack.Core/DocuTrack.Core.csproj" />
   <Project Path="DocuTrack.Infrastructure/DocuTrack.Infrastructure.csproj" />
-  <Project Path="DocuTrack.WinForms/DocuTrack.WinForms.csproj" />
 </Solution>
