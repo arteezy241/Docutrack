@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 
+
+
 // Add services to the container.
 builder.Services.AddOpenApi();
 
@@ -110,11 +112,8 @@ app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? 
 
 // Configure the HTTP request pipeline.
 app.MapOpenApi();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/openapi/v1.json", "DocuTrack API v1");
-    c.RoutePrefix = "swagger";
-});
+app.MapGet("/swagger", () => Results.Redirect("/swagger/index.html"));
+app.UseStaticFiles();
 app.UseCors("DevCorsPolicy");
 
 if (app.Environment.IsDevelopment())
@@ -135,3 +134,28 @@ app.MapControllers();
 
 app.Run();
 // DocuTrack v2 - JWT Auth
+
+var docsHtml = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DocuTrack API</title>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+<script>
+    SwaggerUIBundle({
+        url: "/openapi/v1.json",
+        dom_id: '#swagger-ui',
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+        layout: "BaseLayout"
+    })
+</script>
+</body>
+</html>
+""";
+
+app.MapGet("/docs", () => Results.Content(docsHtml, "text/html"));
