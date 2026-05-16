@@ -121,6 +121,34 @@ namespace DocuTrack.Api.Controllers
         }
 
         /// <summary>
+        /// Reset password for existing unverified users (temp).
+        /// </summary>
+        [HttpPost("reset-for-old-user")]
+        public async Task<IActionResult> ResetOldUser([FromBody] RegisterDto dto)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null) return NotFound();
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            user.IsEmailVerified = false;
+            user.EmailVerificationOtp = otp;
+            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.IsActive = true;
+            user.CreatedAt = DateTime.UtcNow;
+            user.Role = dto.Role;
+            user.FullName = dto.FullName;
+            user.Username = dto.Username;
+
+            await _db.SaveChangesAsync();
+
+            await _email.SendEmailAsync(dto.Email, "DocuTrack - Verify Your Email",
+                $"<h2>Account Reset!</h2><p>Your verification code is:</p><h1 style='color:#4F46E5;letter-spacing:8px'>{otp}</h1><p>This code expires in 10 minutes.</p>");
+
+            return Ok(new { message = "Account reset. Check your email for OTP." });
+        }
+
+        /// <summary>
         /// Login with email and password.
         /// </summary>
         [HttpPost("login")]
