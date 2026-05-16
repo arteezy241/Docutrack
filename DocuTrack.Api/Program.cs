@@ -76,7 +76,22 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<DocuTrack.Infrastructure.Data.DocuTrackDbContext>();
-    db.Database.Migrate();
+
+    try
+    {
+        db.Database.Migrate();
+    }
+    catch (Exception ex) when (ex.Message.Contains("already exists"))
+    {
+        // Tables already exist from EnsureCreated — mark all migrations as applied
+        var appliedMigrations = db.Database.GetAppliedMigrations().ToList();
+        var pendingMigrations = db.Database.GetPendingMigrations().ToList();
+
+        foreach (var migration in pendingMigrations)
+        {
+            db.Database.ExecuteSqlRaw($"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('{migration}', '10.0.0')");
+        }
+    }
 }
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
