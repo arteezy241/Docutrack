@@ -80,9 +80,18 @@ namespace DocuTrack.Api.Controllers
                     await _db.SaveChangesAsync();
                 }
 
-                // replace GenerateJwtToken with your actual method name
                 var token = GenerateJwt(user);
-                return Ok(new { token, user = new { user.Id, user.Email, user.FullName, user.Role } });
+                return Ok(new
+                {
+                    token,
+                    user = new
+                    {
+                        id = user.Id,
+                        email = user.Email,
+                        fullName = user.FullName,
+                        role = user.Role
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -214,12 +223,12 @@ namespace DocuTrack.Api.Controllers
                 token,
                 user = new
                 {
-                    user.Id,
-                    user.FullName,
-                    user.Username,
-                    user.Email,
-                    user.Role,
-                    user.DepartmentId
+                    id = user.Id,           // lowercase
+                    fullName = user.FullName,
+                    username = user.Username,
+                    email = user.Email,
+                    role = user.Role,
+                    departmentId = user.DepartmentId
                 }
             });
         }
