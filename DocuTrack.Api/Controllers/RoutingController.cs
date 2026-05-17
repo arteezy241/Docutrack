@@ -85,5 +85,98 @@ namespace DocuTrack.Api.Controllers
 
             return Ok(history);
         }
+        /// <summary>
+        /// Approve a routed document.
+        /// </summary>
+        [HttpPatch("{eventId:guid}/approve")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Approve(Guid documentId, Guid eventId)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var routingEvent = await _db.RoutingEvents
+                .FirstOrDefaultAsync(r => r.Id == eventId && r.DocumentId == documentId);
+
+            if (routingEvent == null) return NotFound(new { error = "Routing event not found." });
+
+            // only the recipient can approve
+            if (routingEvent.ToUserId?.ToString() != userId)
+                return Forbid();
+
+            var doc = await _db.Documents.FindAsync(documentId);
+            if (doc == null) return NotFound(new { error = "Document not found." });
+
+            routingEvent.StatusAfter = DocumentStatus.Approved;
+            doc.Status = DocumentStatus.Approved;
+            doc.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            // create a new routing event recording the approval
+            var approvalEvent = new RoutingEvent
+            {
+                Id = Guid.NewGuid(),
+                DocumentId = documentId,
+                FromUserId = routingEvent.ToUserId,
+                ToUserId = routingEvent.FromUserId,
+                Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
+                Note = "Document approved",
+                StatusAfter = DocumentStatus.Approved,
+            };
+
+            _db.RoutingEvents.Add(approvalEvent);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Document approved.", status = "Approved" });
+        }
+
+        /// <summary>
+        /// Reject a routed document.
+        /// </summary>
+        [HttpPatch("{eventId:guid}/reject")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Reject(Guid documentId, Guid eventId, [FromBody] RejectDto dto)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            var routingEvent = await _db.RoutingEvents
+                .FirstOrDefaultAsync(r => r.Id == eventId && r.DocumentId == documentId);
+
+            if (routingEvent == null) return NotFound(new { error = "Routing event not found." });
+
+            // only the recipient can reject
+            if (routingEvent.ToUserId?.ToString() != userId)
+                return Forbid();
+
+            var doc = await _db.Documents.FindAsync(documentId);
+            if (doc == null) return NotFound(new { error = "Document not found." });
+
+            routingEvent.StatusAfter = DocumentStatus.Rejected;
+            doc.Status = DocumentStatus.Rejected;
+            doc.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            var rejectionEvent = new RoutingEvent
+            {
+                Id = Guid.NewGuid(),
+                DocumentId = documentId,
+                FromUserId = routingEvent.ToUserId,
+                ToUserId = routingEvent.FromUserId,
+                Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
+                Note = dto?.Reason ?? "Document rejected",
+                StatusAfter = DocumentStatus.Rejected,
+            };
+
+            _db.RoutingEvents.Add(rejectionEvent);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Document rejected.", status = "Rejected" });
+        }
+
+        public class RejectDto
+        {
+            public string? Reason { get; set; }
+        }
     }
 }
