@@ -270,23 +270,32 @@ namespace DocuTrack.Api.Controllers
         [HttpPost("qr-session/create")]
         public async Task<IActionResult> CreateQrSession()
         {
-            // Clean up expired sessions
-            var expired = _db.QrSessions.Where(q => q.ExpiresAt < DateTime.UtcNow);
-            _db.QrSessions.RemoveRange(expired);
-
-            var session = new DocuTrack.Core.Models.QrSession
+            try
             {
-                Id = Guid.NewGuid(),
-                Token = Guid.NewGuid().ToString(),
-                IsScanned = false,
-                CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(2)
-            };
+                // Clean up expired sessions
+                var now = DateTime.UtcNow;
+                var expired = _db.QrSessions.Where(q => q.ExpiresAt < now);
+                _db.QrSessions.RemoveRange(expired);
 
-            _db.QrSessions.Add(session);
-            await _db.SaveChangesAsync();
+                var session = new DocuTrack.Core.Models.QrSession
+                {
+                    Id = Guid.NewGuid(),
+                    Token = Guid.NewGuid().ToString(),
+                    IsScanned = false,
+                    CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
+                    ExpiresAt = DateTime.SpecifyKind(DateTime.UtcNow.AddMinutes(2), DateTimeKind.Utc)
+                };
 
-            return Ok(new { token = session.Token, expiresAt = session.ExpiresAt });
+                _db.QrSessions.Add(session);
+                await _db.SaveChangesAsync();
+
+                return Ok(new { token = session.Token, expiresAt = session.ExpiresAt });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"QR SESSION ERROR: {ex}");
+                return StatusCode(500, new { error = ex.Message, detail = ex.InnerException?.Message });
+            }
         }
 
         /// <summary>

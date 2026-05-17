@@ -7,7 +7,7 @@
         public bool IsScanned { get; set; } = false;
         public string? ScannedByUserId { get; set; }
         public string? JwtToken { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime ExpiresAt { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ExpiresAt { get; set; }
     }
 }
