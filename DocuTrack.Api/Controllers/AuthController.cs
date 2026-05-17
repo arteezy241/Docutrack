@@ -304,14 +304,25 @@ namespace DocuTrack.Api.Controllers
         [HttpGet("qr-session/status/{token}")]
         public async Task<IActionResult> GetQrSessionStatus(string token)
         {
-            var session = await _db.QrSessions.FirstOrDefaultAsync(q => q.Token == token);
-            if (session == null) return NotFound(new { error = "Session not found." });
-            if (session.ExpiresAt < DateTime.UtcNow) return BadRequest(new { error = "Session expired." });
+            try
+            {
+                var session = await _db.QrSessions.FirstOrDefaultAsync(q => q.Token == token);
+                if (session == null) return NotFound(new { error = "Session not found." });
+                if (session.ExpiresAt < DateTimeOffset.UtcNow) return BadRequest(new { error = "Session expired." });
 
-            if (session.IsScanned && session.JwtToken != null)
-                return Ok(new { scanned = true, token = session.JwtToken });
+                if (session.IsScanned && session.JwtToken != null)
+                    return Ok(new { status = "confirmed", token = session.JwtToken });
 
-            return Ok(new { scanned = false });
+                if (session.IsScanned)
+                    return Ok(new { status = "scanned" });
+
+                return Ok(new { status = "pending" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"QR STATUS ERROR: {ex}");
+                return StatusCode(500, new { error = ex.Message, detail = ex.InnerException?.Message });
+            }
         }
 
         /// <summary>
