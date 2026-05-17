@@ -22,7 +22,7 @@ namespace DocuTrack.Api.Services
             {
                 ServiceURL = endpoint,
                 ForcePathStyle = true,
-                SignatureVersion = "4",
+                
                 AuthenticationRegion = "auto",
             };
 

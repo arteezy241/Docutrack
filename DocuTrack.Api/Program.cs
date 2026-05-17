@@ -23,6 +23,8 @@ builder.Services.AddCors(options =>
 });
 
 
+builder.Services.AddSingleton<DocuTrack.Api.Services.FileService>();
+
 
 // Email Service
 builder.Services.AddSingleton<DocuTrack.Api.Services.EmailService>();
