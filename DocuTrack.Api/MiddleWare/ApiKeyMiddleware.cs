@@ -64,6 +64,16 @@ namespace DocuTrack.Api.Middleware
             apiKey.LastUsedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync();
 
+            // set user identity so [Authorize] endpoints accept API key auth
+            var claims = new[]
+            {
+        new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, apiKey.UserId.ToString()),
+        new System.Security.Claims.Claim("ApiKeyAuth", "true")
+    };
+            var identity = new System.Security.Claims.ClaimsIdentity(claims, "ApiKey");
+            var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+            context.User = principal;
+
             await _next(context);
         }
     }
