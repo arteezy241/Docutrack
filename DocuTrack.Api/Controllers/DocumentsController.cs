@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using DocuTrack.Core.Models;
 using DocuTrack.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
+using DocuTrack.Api.Services;
 
 namespace DocuTrack.Api.Controllers
 {
@@ -21,16 +22,17 @@ namespace DocuTrack.Api.Controllers
     public class DocumentsController : ControllerBase
     {
         private readonly DocuTrackDbContext _db;
+        private readonly FileService _fileService;
 
-        public DocumentsController(DocuTrackDbContext db)
+        public DocumentsController(DocuTrackDbContext db, FileService fileService)
         {
             _db = db;
+            _fileService = fileService;
         }
 
         /// <summary>
         /// Lists all documents.
         /// </summary>
-        /// <returns>All documents.</returns>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<Document>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<Document>>> GetAll()
@@ -43,11 +45,9 @@ namespace DocuTrack.Api.Controllers
             return Ok(docs);
         }
 
-        // GET: /api/documents/{id}
         /// <summary>
         /// Gets a single document by id.
         /// </summary>
-        /// <param name="id">Document id.</param>
         [HttpGet("{id:guid}")]
         [ProducesResponseType(typeof(Document), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -60,7 +60,6 @@ namespace DocuTrack.Api.Controllers
                 .FirstOrDefaultAsync(d => d.Id == id);
 
             if (doc == null) return NotFound();
-
             return Ok(doc);
         }
 
@@ -74,7 +73,6 @@ namespace DocuTrack.Api.Controllers
         /// <summary>
         /// Creates a new document.
         /// </summary>
-        /// <param name="dto">Document create payload.</param>
         [HttpPost]
         [ProducesResponseType(typeof(Document), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -99,10 +97,7 @@ namespace DocuTrack.Api.Controllers
 
             _db.Documents.Add(doc);
 
-            try
-            {
-                await _db.SaveChangesAsync();
-            }
+            try { await _db.SaveChangesAsync(); }
             catch (DbUpdateException)
             {
                 return BadRequest(new { error = "Failed to save document due to a data integrity error." });
@@ -111,16 +106,86 @@ namespace DocuTrack.Api.Controllers
             await _db.Entry(doc).Reference(d => d.Owner).LoadAsync();
             return CreatedAtAction(nameof(GetOne), new { id = doc.Id }, doc);
         }
+
+        /// <summary>
+        /// Upload a file to an existing document.
+        /// </summary>
+        [HttpPost("{id:guid}/upload")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UploadFile(Guid id, IFormFile file)
+        {
+            var doc = await _db.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "No file provided." });
+
+            // only allow PDF and DOCX
+            var allowedTypes = new[] {
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "application/msword"
+            };
+            if (!allowedTypes.Contains(file.ContentType))
+                return BadRequest(new { error = "Only PDF and DOCX files are allowed." });
+
+            // max 10MB
+            if (file.Length > 10 * 1024 * 1024)
+                return BadRequest(new { error = "File size must be under 10MB." });
+
+            try
+            {
+                // delete old file if exists
+                if (!string.IsNullOrEmpty(doc.FileUrl))
+                    await _fileService.DeleteFileAsync(doc.FileUrl);
+
+                var fileUrl = await _fileService.UploadFileAsync(file);
+                doc.FileUrl = fileUrl;
+                doc.FileName = file.FileName;
+                doc.UpdatedAt = DateTime.UtcNow;
+
+                await _db.SaveChangesAsync();
+
+                return Ok(new { fileUrl = doc.FileUrl, fileName = doc.FileName });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Delete the file attached to a document.
+        /// </summary>
+        [HttpDelete("{id:guid}/file")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteFile(Guid id)
+        {
+            var doc = await _db.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            if (!string.IsNullOrEmpty(doc.FileUrl))
+                await _fileService.DeleteFileAsync(doc.FileUrl);
+
+            doc.FileUrl = null;
+            doc.FileName = null;
+            doc.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "File deleted." });
+        }
+
         public class UpdateStatusDto
         {
             public DocumentStatus Status { get; set; }
         }
 
         /// <summary>
-        /// Updates the status of a document. A routing event will be recorded.
+        /// Updates the status of a document.
         /// </summary>
-        /// <param name="id">Document id.</param>
-        /// <param name="dto">New status value.</param>
         [HttpPatch("{id:guid}/status")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -132,7 +197,6 @@ namespace DocuTrack.Api.Controllers
             doc.Status = dto.Status;
             doc.UpdatedAt = DateTime.UtcNow;
 
-            // add a routing event recording the status change
             var routingEvent = new RoutingEvent
             {
                 Id = Guid.NewGuid(),
@@ -145,8 +209,6 @@ namespace DocuTrack.Api.Controllers
             };
 
             _db.RoutingEvents.Add(routingEvent);
-
-            // persist change and the routing event
             await _db.SaveChangesAsync();
 
             return NoContent();
