@@ -272,8 +272,7 @@ namespace DocuTrack.Api.Controllers
         {
             try
             {
-                // Clean up expired sessions
-                var now = DateTime.UtcNow;
+                var now = DateTimeOffset.UtcNow;
                 var expired = _db.QrSessions.Where(q => q.ExpiresAt < now);
                 _db.QrSessions.RemoveRange(expired);
 
@@ -282,8 +281,8 @@ namespace DocuTrack.Api.Controllers
                     Id = Guid.NewGuid(),
                     Token = Guid.NewGuid().ToString(),
                     IsScanned = false,
-                    CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
-                    ExpiresAt = DateTime.SpecifyKind(DateTime.UtcNow.AddMinutes(2), DateTimeKind.Utc)
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2)
                 };
 
                 _db.QrSessions.Add(session);
