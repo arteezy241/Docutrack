@@ -264,6 +264,70 @@ namespace DocuTrack.Api.Controllers
             public string Email { get; set; } = string.Empty;
         }
 
+        /// <summary>
+        /// Creates a new QR session for login page display.
+        /// </summary>
+        [HttpPost("qr-session/create")]
+        public async Task<IActionResult> CreateQrSession()
+        {
+            // Clean up expired sessions
+            var expired = _db.QrSessions.Where(q => q.ExpiresAt < DateTime.UtcNow);
+            _db.QrSessions.RemoveRange(expired);
+
+            var session = new DocuTrack.Core.Models.QrSession
+            {
+                Id = Guid.NewGuid(),
+                Token = Guid.NewGuid().ToString(),
+                IsScanned = false,
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(2)
+            };
+
+            _db.QrSessions.Add(session);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { token = session.Token, expiresAt = session.ExpiresAt });
+        }
+
+        /// <summary>
+        /// Poll to check if QR session was scanned.
+        /// </summary>
+        [HttpGet("qr-session/status/{token}")]
+        public async Task<IActionResult> GetQrSessionStatus(string token)
+        {
+            var session = await _db.QrSessions.FirstOrDefaultAsync(q => q.Token == token);
+            if (session == null) return NotFound(new { error = "Session not found." });
+            if (session.ExpiresAt < DateTime.UtcNow) return BadRequest(new { error = "Session expired." });
+
+            if (session.IsScanned && session.JwtToken != null)
+                return Ok(new { scanned = true, token = session.JwtToken });
+
+            return Ok(new { scanned = false });
+        }
+
+        /// <summary>
+        /// Confirm QR scan from mobile (requires auth).
+        /// </summary>
+        [Authorize]
+        [HttpPost("qr-session/confirm/{token}")]
+        public async Task<IActionResult> ConfirmQrSession(string token)
+        {
+            var session = await _db.QrSessions.FirstOrDefaultAsync(q => q.Token == token);
+            if (session == null) return NotFound(new { error = "Session not found." });
+            if (session.ExpiresAt < DateTime.UtcNow) return BadRequest(new { error = "Session expired." });
+
+            var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null) return NotFound();
+
+            session.IsScanned = true;
+            session.ScannedByUserId = user.Id.ToString();
+            session.JwtToken = GenerateJwt(user);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "QR session confirmed." });
+        }
+
         private string GenerateJwt(User user)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
