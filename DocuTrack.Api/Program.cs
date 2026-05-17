@@ -6,15 +6,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 // CORS
+
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("DevCorsPolicy", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy.WithOrigins(
+                "https://docutrack-frontend-gray.vercel.app",
+                "http://localhost:5173"           // ← add this
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
+
+
 
 // Email Service
 builder.Services.AddSingleton<DocuTrack.Api.Services.EmailService>();
@@ -105,7 +113,7 @@ using (var scope = app.Services.CreateScope())
 app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? "8080"));
 
 // Middleware pipeline — ORDER MATTERS
-app.UseCors("DevCorsPolicy");
+app.UseCors("AllowFrontend");
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapOpenApi();
