@@ -22,8 +22,8 @@ namespace DocuTrack.Api.Services
             {
                 ServiceURL = endpoint,
                 ForcePathStyle = true,
-                
                 AuthenticationRegion = "auto",
+               
             };
 
             _s3 = new AmazonS3Client(accessKey, secretKey, s3Config);
@@ -42,6 +42,7 @@ namespace DocuTrack.Api.Services
                 Key = fileName,
                 InputStream = stream,
                 ContentType = file.ContentType,
+                UseChunkEncoding = false,
             };
 
             await _s3.PutObjectAsync(request);
