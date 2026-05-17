@@ -14,5 +14,8 @@ namespace DocuTrack.Core.Models
         public List<RoutingEvent> RoutingHistory { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public string? FileUrl { get; set; }
+        public string? FileName { get; set; }
+        //qweqwetqwteqwt
     }
 }
