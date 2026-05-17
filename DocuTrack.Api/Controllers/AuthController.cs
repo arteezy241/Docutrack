@@ -54,7 +54,48 @@ namespace DocuTrack.Api.Controllers
         {
             public string Token { get; set; } = string.Empty;
         }
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+        {
+            try
+            {
+                var payload = await Google.Apis.Auth.GoogleJsonWebSignature.ValidateAsync(request.IdToken);
 
+                var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
+                if (user == null)
+                {
+                    user = new User
+                    {
+                        Id = Guid.NewGuid(),
+                        Email = payload.Email,
+                        FullName = payload.Name,
+                        Username = payload.Email.Split('@')[0],
+                        Role = "Staff",
+                        IsEmailVerified = true,
+                        IsActive = true,
+                        CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    };
+                    _db.Users.Add(user);
+                    await _db.SaveChangesAsync();
+                }
+
+                // replace GenerateJwtToken with your actual method name
+                var token = GenerateJwt(user);
+                return Ok(new { token, user = new { user.Id, user.Email, user.FullName, user.Role } });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = "Invalid Google token: " + ex.Message });
+            }
+        }
+
+        public class GoogleLoginRequest
+        {
+            public string IdToken { get; set; } = string.Empty;
+        }
+
+     
         /// <summary>
         /// Register a new user.
         /// </summary>
