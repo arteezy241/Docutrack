@@ -15,6 +15,7 @@ namespace DocuTrack.Infrastructure.Data
         public DbSet<RoutingEvent> RoutingEvents { get; set; } = null!;
         public DbSet<Department> Departments { get; set; } = null!;
         public DbSet<PushSubscription> PushSubscriptions { get; set; } = null!;
+        public DbSet<QrSession> QrSessions { get; set; } = null!;
 
         public DbSet<WorkflowRule> WorkflowRules { get; set; } = null!;
 
@@ -35,6 +36,11 @@ namespace DocuTrack.Infrastructure.Data
             modelBuilder.Entity<PushSubscription>(b =>
             {
                 b.HasKey(p => p.Id);
+            });
+
+            modelBuilder.Entity<QrSession>(b =>
+            {
+                b.HasKey(q => q.Id);
             });
             modelBuilder.Entity<WorkflowRule>(b =>
             {
