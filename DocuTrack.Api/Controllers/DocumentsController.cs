@@ -177,7 +177,25 @@ namespace DocuTrack.Api.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { message = "File deleted." });
         }
+        /// <summary>
+        /// Delete a document.
+        /// </summary>
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var doc = await _db.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
 
+            if (!string.IsNullOrEmpty(doc.FileUrl))
+                await _fileService.DeleteFileAsync(doc.FileUrl);
+
+            _db.Documents.Remove(doc);
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
         public class UpdateStatusDto
         {
             public DocumentStatus Status { get; set; }
