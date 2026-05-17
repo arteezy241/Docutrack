@@ -117,6 +117,7 @@ app.UseCors("AllowFrontend");
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapOpenApi();
+app.UseMiddleware<DocuTrack.Api.Middleware.ApiKeyMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
