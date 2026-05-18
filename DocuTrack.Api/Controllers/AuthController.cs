@@ -80,17 +80,47 @@ namespace DocuTrack.Api.Controllers
                     await _db.SaveChangesAsync();
                 }
 
-                var token = GenerateJwt(user);
+                // check 2FA
+                if (user.IsTwoFactorEnabled)
+                {
+                    var deviceToken = Request.Headers["X-Device-Token"].ToString();
+                    if (!string.IsNullOrEmpty(deviceToken))
+                    {
+                        var trusted = await _db.TrustedDevices
+                            .FirstOrDefaultAsync(d => d.DeviceToken == deviceToken && d.UserId == user.Id);
+                        if (trusted != null)
+                        {
+                            trusted.LastUsedAt = DateTimeOffset.UtcNow;
+                            await _db.SaveChangesAsync();
+                            var token = GenerateJwt(user);
+                            return Ok(new
+                            {
+                                token,
+                                requiresOtp = false,
+                                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
+                            });
+                        }
+                    }
+
+                    // untrusted device — send OTP
+                    var otp = new Random().Next(100000, 999999).ToString();
+                    user.EmailVerificationOtp = otp;
+                    user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+                    await _db.SaveChangesAsync();
+
+                    await _email.SendEmailAsync(user.Email!, "DocuTrack - New Device Login",
+                        $"<h2>New Device Login Detected</h2><p>Someone is trying to sign in to your account from a new device.</p><h1 style='color:#4F46E5;letter-spacing:8px'>{otp}</h1><p>This code expires in 10 minutes. If this wasn't you, please secure your account.</p>");
+
+                    return Ok(new { requiresOtp = true, email = user.Email });
+                }
+
+                // 2FA disabled — normal login
+                var jwt = GenerateJwt(user);
                 return Ok(new
                 {
-                    token,
-                    user = new
-                    {
-                        id = user.Id,
-                        email = user.Email,
-                        fullName = user.FullName,
-                        role = user.Role
-                    }
+                    token = jwt,
+                    requiresOtp = false,
+                    user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
                 });
             }
             catch (Exception ex)
@@ -104,7 +134,7 @@ namespace DocuTrack.Api.Controllers
             public string IdToken { get; set; } = string.Empty;
         }
 
-     
+
         /// <summary>
         /// Register a new user.
         /// </summary>
