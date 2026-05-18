@@ -11,6 +11,7 @@ namespace DocuTrack.Core.Models
 
         // Auth fields
         public string? PasswordHash { get; set; }
+        public bool IsTwoFactorEnabled { get; set; } = false;
         public string? Role { get; set; } = "Staff";
         public bool IsEmailVerified { get; set; } = false;
         public string? EmailVerificationOtp { get; set; }

@@ -216,23 +216,151 @@ namespace DocuTrack.Api.Controllers
             if (!user.IsActive)
                 return Unauthorized(new { error = "Account is disabled." });
 
-            var token = GenerateJwt(user);
+            // check 2FA
+            if (user.IsTwoFactorEnabled)
+            {
+                var deviceToken = Request.Headers["X-Device-Token"].ToString();
+                if (!string.IsNullOrEmpty(deviceToken))
+                {
+                    var trusted = await _db.TrustedDevices
+                        .FirstOrDefaultAsync(d => d.DeviceToken == deviceToken && d.UserId == user.Id);
+                    if (trusted != null)
+                    {
+                        trusted.LastUsedAt = DateTimeOffset.UtcNow;
+                        await _db.SaveChangesAsync();
+                        // trusted device — skip OTP
+                        var token = GenerateJwt(user);
+                        return Ok(new
+                        {
+                            token,
+                            requiresOtp = false,
+                            user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
+                        });
+                    }
+                }
 
+                // untrusted device — send OTP
+                var otp = new Random().Next(100000, 999999).ToString();
+                user.EmailVerificationOtp = otp;
+                user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+                await _db.SaveChangesAsync();
+
+                await _email.SendEmailAsync(user.Email!, "DocuTrack - New Device Login",
+                    $"<h2>New Device Login Detected</h2><p>Someone is trying to sign in to your account from a new device.</p><h1 style='color:#4F46E5;letter-spacing:8px'>{otp}</h1><p>This code expires in 10 minutes. If this wasn't you, please secure your account.</p>");
+
+                return Ok(new { requiresOtp = true, email = user.Email });
+            }
+
+            // 2FA disabled — normal login
+            var jwt = GenerateJwt(user);
+            return Ok(new
+            {
+                token = jwt,
+                requiresOtp = false,
+                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
+            });
+        }
+        [HttpPost("verify-device")]
+        public async Task<IActionResult> VerifyDevice([FromBody] VerifyDeviceDto dto)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null) return Unauthorized(new { error = "User not found." });
+
+            if (user.EmailVerificationOtp != dto.Otp)
+                return BadRequest(new { error = "Invalid OTP." });
+
+            if (user.OtpExpiry < DateTime.UtcNow)
+                return BadRequest(new { error = "OTP expired." });
+
+            // clear OTP
+            user.EmailVerificationOtp = null;
+            user.OtpExpiry = null;
+
+            // create trusted device
+            var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            var device = new TrustedDevice
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                DeviceToken = deviceToken,
+                DeviceName = dto.DeviceName ?? "Unknown Device",
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastUsedAt = DateTimeOffset.UtcNow,
+            };
+
+            _db.TrustedDevices.Add(device);
+            await _db.SaveChangesAsync();
+
+            var token = GenerateJwt(user);
             return Ok(new
             {
                 token,
-                user = new
-                {
-                    id = user.Id,           // lowercase
-                    fullName = user.FullName,
-                    username = user.Username,
-                    email = user.Email,
-                    role = user.Role,
-                    departmentId = user.DepartmentId
-                }
+                deviceToken,
+                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
             });
         }
 
+        public class VerifyDeviceDto
+        {
+            public string Email { get; set; } = string.Empty;
+            public string Otp { get; set; } = string.Empty;
+            public string? DeviceName { get; set; }
+        }
+
+        [Authorize]
+        [HttpGet("trusted-devices")]
+        public async Task<IActionResult> GetTrustedDevices()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var devices = await _db.TrustedDevices
+                .Where(d => d.UserId == Guid.Parse(userId))
+                .OrderByDescending(d => d.LastUsedAt)
+                .ToListAsync();
+
+            return Ok(devices.Select(d => new
+            {
+                d.Id,
+                d.DeviceName,
+                d.CreatedAt,
+                d.LastUsedAt,
+            }));
+        }
+
+        [Authorize]
+        [HttpDelete("trusted-devices/{id:guid}")]
+        public async Task<IActionResult> RemoveTrustedDevice(Guid id)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var device = await _db.TrustedDevices
+                .FirstOrDefaultAsync(d => d.Id == id && d.UserId == Guid.Parse(userId));
+
+            if (device == null) return NotFound();
+
+            _db.TrustedDevices.Remove(device);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Device removed." });
+        }
+
+        [Authorize]
+        [HttpPatch("2fa/toggle")]
+        public async Task<IActionResult> Toggle2FA()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var user = await _db.Users.FindAsync(Guid.Parse(userId));
+            if (user == null) return NotFound();
+
+            user.IsTwoFactorEnabled = !user.IsTwoFactorEnabled;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { isTwoFactorEnabled = user.IsTwoFactorEnabled });
+        }
         /// <summary>
         /// Generate a QR login token.
         /// </summary>

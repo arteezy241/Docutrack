@@ -19,6 +19,8 @@ namespace DocuTrack.Infrastructure.Data
 
         public DbSet<WorkflowRule> WorkflowRules { get; set; } = null!;
 
+        public DbSet<TrustedDevice> TrustedDevices { get; set; }
+
         public DbSet<ApiKey> ApiKeys { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
 
