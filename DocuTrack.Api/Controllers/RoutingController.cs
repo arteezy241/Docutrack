@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using DocuTrack.Core.Models;
 using DocuTrack.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
+using DocuTrack.Api.Services;
+using System.Text.Json;
+using WebPush;
 
 namespace DocuTrack.Api.Controllers
 {
@@ -13,10 +16,14 @@ namespace DocuTrack.Api.Controllers
     public class RoutingController : ControllerBase
     {
         private readonly DocuTrackDbContext _db;
+        private readonly EmailService _email;
+        private readonly IConfiguration _config;
 
-        public RoutingController(DocuTrackDbContext db)
+        public RoutingController(DocuTrackDbContext db, EmailService email, IConfiguration config)
         {
             _db = db;
+            _email = email;
+            _config = config;
         }
 
         public class RouteDocumentDto
@@ -25,6 +32,43 @@ namespace DocuTrack.Api.Controllers
             public Guid? ToUserId { get; set; }
             public string? Note { get; set; }
             public DocumentStatus StatusAfter { get; set; }
+        }
+
+        private async Task SendPush(User user, string title, string message)
+        {
+            try
+            {
+                var publicKey = _config["Vapid:PublicKey"];
+                var privateKey = _config["Vapid:PrivateKey"];
+                var subject = _config["Vapid:Subject"];
+
+                var pushClient = new WebPushClient();
+                pushClient.SetVapidDetails(subject, publicKey, privateKey);
+
+                var payload = JsonSerializer.Serialize(new { title, message });
+
+                var subscriptions = await _db.PushSubscriptions.ToListAsync();
+                foreach (var sub in subscriptions)
+                {
+                    try
+                    {
+                        var pushSub = new WebPush.PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth);
+                        await pushClient.SendNotificationAsync(pushSub, payload);
+                    }
+                    catch { /* dead subscription, ignore */ }
+                }
+            }
+            catch { /* push failure should not break the request */ }
+        }
+
+        private async Task SendEmailAndPush(Guid? userId, string subject, string emailBody, string pushTitle, string pushMessage)
+        {
+            if (!userId.HasValue) return;
+            var user = await _db.Users.FindAsync(userId.Value);
+            if (user == null || string.IsNullOrEmpty(user.Email)) return;
+
+            try { await _email.SendEmailAsync(user.Email, subject, emailBody); } catch { }
+            await SendPush(user, pushTitle, pushMessage);
         }
 
         /// <summary>
@@ -63,6 +107,15 @@ namespace DocuTrack.Api.Controllers
             _db.RoutingEvents.Add(routingEvent);
             await _db.SaveChangesAsync();
 
+            // notify recipient
+            await SendEmailAndPush(
+                dto.ToUserId,
+                "DocuTrack — Document Routed to You",
+                $"<h2>Document Routed to You</h2><p>The document <strong>{doc.Title}</strong> has been routed to you for review.</p>{(string.IsNullOrEmpty(dto.Note) ? "" : $"<p>Note: {dto.Note}</p>")}<p>Log in to DocuTrack to review it.</p>",
+                "Document Routed to You",
+                $"{doc.Title} has been routed to you for review."
+            );
+
             return CreatedAtAction(nameof(GetHistory), new { documentId }, routingEvent);
         }
 
@@ -85,6 +138,7 @@ namespace DocuTrack.Api.Controllers
 
             return Ok(history);
         }
+
         /// <summary>
         /// Approve a routed document.
         /// </summary>
@@ -101,7 +155,6 @@ namespace DocuTrack.Api.Controllers
 
             if (routingEvent == null) return NotFound(new { error = "Routing event not found." });
 
-            // only the recipient can approve
             if (routingEvent.ToUserId?.ToString() != userId)
                 return Forbid();
 
@@ -112,7 +165,6 @@ namespace DocuTrack.Api.Controllers
             doc.Status = DocumentStatus.Approved;
             doc.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
 
-            // create a new routing event recording the approval
             var approvalEvent = new RoutingEvent
             {
                 Id = Guid.NewGuid(),
@@ -126,6 +178,15 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(approvalEvent);
             await _db.SaveChangesAsync();
+
+            // notify original sender
+            await SendEmailAndPush(
+                routingEvent.FromUserId,
+                "DocuTrack — Document Approved",
+                $"<h2>Document Approved</h2><p>Your document <strong>{doc.Title}</strong> has been approved.</p><p>Log in to DocuTrack to view it.</p>",
+                "Document Approved",
+                $"{doc.Title} has been approved."
+            );
 
             return Ok(new { message = "Document approved.", status = "Approved" });
         }
@@ -146,7 +207,6 @@ namespace DocuTrack.Api.Controllers
 
             if (routingEvent == null) return NotFound(new { error = "Routing event not found." });
 
-            // only the recipient can reject
             if (routingEvent.ToUserId?.ToString() != userId)
                 return Forbid();
 
@@ -170,6 +230,15 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(rejectionEvent);
             await _db.SaveChangesAsync();
+
+            // notify original sender
+            await SendEmailAndPush(
+                routingEvent.FromUserId,
+                "DocuTrack — Document Rejected",
+                $"<h2>Document Rejected</h2><p>Your document <strong>{doc.Title}</strong> has been rejected.</p>{(string.IsNullOrEmpty(dto?.Reason) ? "" : $"<p>Reason: {dto.Reason}</p>")}<p>Log in to DocuTrack to view it.</p>",
+                "Document Rejected",
+                $"{doc.Title} has been rejected.{(string.IsNullOrEmpty(dto?.Reason) ? "" : " Reason: " + dto.Reason)}"
+            );
 
             return Ok(new { message = "Document rejected.", status = "Rejected" });
         }
