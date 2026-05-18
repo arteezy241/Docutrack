@@ -228,13 +228,12 @@ namespace DocuTrack.Api.Controllers
                     {
                         trusted.LastUsedAt = DateTimeOffset.UtcNow;
                         await _db.SaveChangesAsync();
-                        // trusted device — skip OTP
                         var token = GenerateJwt(user);
                         return Ok(new
                         {
                             token,
                             requiresOtp = false,
-                            user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
+                            user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
                         });
                     }
                 }
@@ -257,9 +256,10 @@ namespace DocuTrack.Api.Controllers
             {
                 token = jwt,
                 requiresOtp = false,
-                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
+                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
             });
         }
+
         [HttpPost("verify-device")]
         public async Task<IActionResult> VerifyDevice([FromBody] VerifyDeviceDto dto)
         {
@@ -296,7 +296,7 @@ namespace DocuTrack.Api.Controllers
             {
                 token,
                 deviceToken,
-                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId }
+                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
             });
         }
 
