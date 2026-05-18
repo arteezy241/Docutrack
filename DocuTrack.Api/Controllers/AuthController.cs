@@ -283,7 +283,7 @@ namespace DocuTrack.Api.Controllers
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 DeviceToken = deviceToken,
-                DeviceName = dto.DeviceName ?? "Unknown Device",
+                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
                 CreatedAt = DateTimeOffset.UtcNow,
                 LastUsedAt = DateTimeOffset.UtcNow,
             };
@@ -548,5 +548,26 @@ namespace DocuTrack.Api.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+        private string ParseDeviceName(string? userAgent)
+        {
+            if (string.IsNullOrEmpty(userAgent)) return "Unknown Device";
+
+            string browser = "Browser";
+            string os = "Unknown OS";
+
+            if (userAgent.Contains("Edg/")) browser = "Edge";
+            else if (userAgent.Contains("Chrome")) browser = "Chrome";
+            else if (userAgent.Contains("Firefox")) browser = "Firefox";
+            else if (userAgent.Contains("Safari")) browser = "Safari";
+
+            if (userAgent.Contains("Windows NT")) os = "Windows";
+            else if (userAgent.Contains("Macintosh")) os = "macOS";
+            else if (userAgent.Contains("Linux")) os = "Linux";
+            else if (userAgent.Contains("Android")) os = "Android";
+            else if (userAgent.Contains("iPhone") || userAgent.Contains("iPad")) os = "iOS";
+
+            return $"{browser} on {os}";
+        }
+
     }
 }
