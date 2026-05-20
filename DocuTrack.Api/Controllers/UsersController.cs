@@ -105,5 +105,24 @@ namespace DocuTrack.Api.Controllers
         {
             public Guid? DepartmentId { get; set; }
         }
+        /// <summary>
+        /// Updates the phone number for a user.
+        /// </summary>
+        [HttpPatch("{id:guid}/phone")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdatePhone(Guid id, [FromBody] UpdatePhoneDto dto)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound();
+            user.PhoneNumber = dto.PhoneNumber;
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
+        public class UpdatePhoneDto
+        {
+            public string? PhoneNumber { get; set; }
+        }
     }
 }

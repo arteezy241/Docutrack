@@ -12,12 +12,24 @@ namespace DocuTrack.Core.Models
         // Auth fields
         public string? PasswordHash { get; set; }
         public bool IsTwoFactorEnabled { get; set; } = false;
+        public string? TwoFactorMethod { get; set; } = "email"; // "email" or "sms"
         public string? Role { get; set; } = "Staff";
+
+        // Email verification
         public bool IsEmailVerified { get; set; } = false;
         public string? EmailVerificationOtp { get; set; }
         public DateTime? OtpExpiry { get; set; }
+
+        // Phone
+        public string? PhoneNumber { get; set; }
+        public bool IsPhoneVerified { get; set; } = false;
+        public string? PhoneOtp { get; set; }
+        public DateTime? PhoneOtpExpiry { get; set; }
+
+        // QR login
         public string? QrLoginToken { get; set; }
         public DateTime? QrLoginExpiry { get; set; }
+
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
     }

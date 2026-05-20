@@ -12,7 +12,7 @@
         public Guid? AssignToUserId { get; set; }
         public User? AssignToUser { get; set; }
 
-        // ...and set this new status
+        // ...and set this new status   
         public DocumentStatus NextStatus { get; set; }
 
         // Optional note to attach to the routing event
