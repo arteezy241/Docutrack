@@ -92,17 +92,18 @@ using (var scope = app.Services.CreateScope())
     using var cmd = conn.CreateCommand();
 
     var alterCommands = new[]
-    {
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Role\" text",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsEmailVerified\" boolean NOT NULL DEFAULT false",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"EmailVerificationOtp\" text",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"OtpExpiry\" timestamp with time zone",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginToken\" text",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginExpiry\" timestamp with time zone",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
-        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
-    };
+{
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Role\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsEmailVerified\" boolean NOT NULL DEFAULT false",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"EmailVerificationOtp\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"OtpExpiry\" timestamp with time zone",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginToken\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginExpiry\" timestamp with time zone",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
+    "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
+};
 
     foreach (var sql in alterCommands)
     {
@@ -111,7 +112,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     conn.Close();
-    "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
+    
     try { db.Database.Migrate(); } catch { }
 }
 
