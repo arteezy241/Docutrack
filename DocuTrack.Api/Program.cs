@@ -111,6 +111,7 @@ using (var scope = app.Services.CreateScope())
     }
 
     conn.Close();
+    "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
     try { db.Database.Migrate(); } catch { }
 }
 
