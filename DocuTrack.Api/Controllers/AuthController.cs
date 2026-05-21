@@ -141,8 +141,8 @@ namespace DocuTrack.Api.Controllers
                 return Ok(new { message = "If that email exists, a reset code has been sent." });
 
             var otp = new Random().Next(100000, 999999).ToString();
-            user.EmailVerificationOtp = otp;
-            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            user.PasswordResetOtp = otp;
+            user.PasswordResetOtpExpiry = DateTime.UtcNow.AddMinutes(10);
             await _db.SaveChangesAsync();
 
             await _email.SendEmailAsync(user.Email!, "DocuTrack — Password Reset",
@@ -165,16 +165,15 @@ namespace DocuTrack.Api.Controllers
             if (user == null)
                 return BadRequest(new { error = "Invalid request." });
 
-            if (user.EmailVerificationOtp != dto.Otp)
+            if (user.PasswordResetOtp != dto.Otp)
                 return BadRequest(new { error = "Invalid or expired reset code." });
 
-            if (user.OtpExpiry < DateTime.UtcNow)
+            if (user.PasswordResetOtpExpiry < DateTime.UtcNow)
                 return BadRequest(new { error = "Reset code has expired. Please request a new one." });
 
-            // Update password
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-            user.EmailVerificationOtp = null;
-            user.OtpExpiry = null;
+            user.PasswordResetOtp = null;
+            user.PasswordResetOtpExpiry = null;
 
             // Invalidate all trusted devices for security
             var trustedDevices = await _db.TrustedDevices

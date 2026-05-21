@@ -14,7 +14,8 @@ namespace DocuTrack.Core.Models
         public bool IsTwoFactorEnabled { get; set; } = false;
         public string? TwoFactorMethod { get; set; } = "email"; // "email" or "sms"
         public string? Role { get; set; } = "Staff";
-
+        public string? PasswordResetOtp { get; set; }
+        public DateTime? PasswordResetOtpExpiry { get; set; }
         // Email verification
         public bool IsEmailVerified { get; set; } = false;
         public string? EmailVerificationOtp { get; set; }

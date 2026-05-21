@@ -188,6 +188,8 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtp\" text",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtpExpiry\" timestamp with time zone",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtp\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtpExpiry\" timestamp with time zone",
         "CREATE TABLE IF NOT EXISTS \"AuditLogs\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"UserId\" uuid, \"UserEmail\" text, \"Action\" text NOT NULL, \"ResourceType\" text, \"ResourceId\" text, \"Details\" text, \"IpAddress\" text, \"Timestamp\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_AuditLogs\" PRIMARY KEY (\"Id\"))",
     };
 
