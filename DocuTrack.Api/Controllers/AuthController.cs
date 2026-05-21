@@ -353,11 +353,50 @@ namespace DocuTrack.Api.Controllers
             {
                 d.Id,
                 d.DeviceName,
+                d.DeviceToken,
                 d.CreatedAt,
                 d.LastUsedAt,
             }));
         }
+        [Authorize]
+        [HttpPost("trust-device")]
+        public async Task<IActionResult> TrustDevice()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
 
+            var deviceToken = Request.Headers["X-Device-Token"].ToString();
+
+            // check if already trusted
+            if (!string.IsNullOrEmpty(deviceToken))
+            {
+                var existing = await _db.TrustedDevices
+                    .FirstOrDefaultAsync(d => d.DeviceToken == deviceToken && d.UserId == Guid.Parse(userId));
+                if (existing != null)
+                {
+                    existing.LastUsedAt = DateTimeOffset.UtcNow;
+                    await _db.SaveChangesAsync();
+                    return Ok(new { deviceToken = existing.DeviceToken, message = "Already trusted." });
+                }
+            }
+
+            // create new trusted device
+            var newDeviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            var device = new TrustedDevice
+            {
+                Id = Guid.NewGuid(),
+                UserId = Guid.Parse(userId),
+                DeviceToken = newDeviceToken,
+                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastUsedAt = DateTimeOffset.UtcNow,
+            };
+
+            _db.TrustedDevices.Add(device);
+            await _db.SaveChangesAsync();
+
+            return Ok(new { deviceToken = newDeviceToken, message = "Device trusted." });
+        }
         [Authorize]
         [HttpDelete("trusted-devices/{id:guid}")]
         public async Task<IActionResult> RemoveTrustedDevice(Guid id)
