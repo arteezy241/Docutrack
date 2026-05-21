@@ -125,6 +125,39 @@ namespace DocuTrack.Api.Controllers
             public string NewPassword { get; set; } = string.Empty;
         }
 
+        public class ChangePasswordDto
+        {
+            [Required]
+            public string CurrentPassword { get; set; } = string.Empty;
+
+            [Required]
+            [StringLength(100, MinimumLength = 8)]
+            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+                ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
+            public string NewPassword { get; set; } = string.Empty;
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var user = await _db.Users.FindAsync(Guid.Parse(userId));
+            if (user == null) return NotFound();
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { error = "Current password is incorrect." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _db.SaveChangesAsync();
+
+            await LogAudit("PASSWORD_CHANGED", "User", user.Id.ToString(), null, user.Id, user.Email);
+
+            return Ok(new { message = "Password changed successfully." });
+        }
+
         /// <summary>
         /// Sends a password reset OTP to the user's email.
         /// </summary>
