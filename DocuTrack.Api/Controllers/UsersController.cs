@@ -79,13 +79,35 @@ namespace DocuTrack.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(Guid id)
         {
+            var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (currentUserId == id.ToString())
+                return BadRequest(new { error = "You cannot deactivate your own account." });
+            
             var user = await _db.Users.FindAsync(id);
             if (user == null) return NotFound();
-            _db.Users.Remove(user);
+
+            // Soft delete — deactivate instead of removing
+            user.IsActive = false;
             await _db.SaveChangesAsync();
+
             return NoContent();
         }
+        /// <summary>
+        /// Reactivates a deactivated user.
+        /// </summary>
+        [HttpPatch("{id:guid}/reactivate")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Reactivate(Guid id)
+        {
+            var user = await _db.Users.FindAsync(id);
+            if (user == null) return NotFound();
 
+            user.IsActive = true;
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
         /// <summary>
         /// Assigns a user to a department.
         /// </summary>
