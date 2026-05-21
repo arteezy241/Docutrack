@@ -92,12 +92,12 @@ namespace DocuTrack.Api.Controllers
                 }
             }
 
-            //if (failed.Any())
-           // {
-            //    var dead = _db.PushSubscriptions.Where(p => failed.Contains(p.Id));
-             //   _db.PushSubscriptions.RemoveRange(dead);
-             //   await _db.SaveChangesAsync();
-          //  }
+            if (failed.Any())
+            {
+                var dead = _db.PushSubscriptions.Where(p => failed.Contains(p.Id));
+               _db.PushSubscriptions.RemoveRange(dead);
+                await _db.SaveChangesAsync();
+            }
 
             return Ok(new { sent = subscriptions.Count - failed.Count, errors });
         }
@@ -154,7 +154,8 @@ namespace DocuTrack.Api.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { error = ex.Message });
+                Console.WriteLine($"[ERROR] SendEmail: {ex}");
+                return BadRequest(new { error = "Failed to send email. Please try again." });
             }
         }
     }

@@ -18,7 +18,7 @@ namespace DocuTrack.Infrastructure.Data
         public DbSet<QrSession> QrSessions { get; set; } = null!;
 
         public DbSet<WorkflowRule> WorkflowRules { get; set; } = null!;
-
+        public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<TrustedDevice> TrustedDevices { get; set; }
 
         public DbSet<ApiKey> ApiKeys { get; set; }

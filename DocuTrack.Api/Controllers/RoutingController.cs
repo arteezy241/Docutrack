@@ -106,7 +106,7 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(routingEvent);
             await _db.SaveChangesAsync();
-
+            await LogAudit("DOCUMENT_ROUTED", "Document", documentId.ToString(), $"Routed to {dto.ToUserId}");
             // notify recipient
             await SendEmailAndPush(
                 dto.ToUserId,
@@ -178,7 +178,7 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(approvalEvent);
             await _db.SaveChangesAsync();
-
+            await LogAudit("DOCUMENT_APPROVED", "Document", documentId.ToString());
             // notify original sender
             await SendEmailAndPush(
                 routingEvent.FromUserId,
@@ -230,7 +230,7 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(rejectionEvent);
             await _db.SaveChangesAsync();
-
+            await LogAudit("DOCUMENT_REJECTED", "Document", documentId.ToString(), dto?.Reason);
             // notify original sender
             await SendEmailAndPush(
                 routingEvent.FromUserId,
@@ -246,6 +246,27 @@ namespace DocuTrack.Api.Controllers
         public class RejectDto
         {
             public string? Reason { get; set; }
+        }
+        private async Task LogAudit(string action, string? resourceType = null,
+    string? resourceId = null, string? details = null, Guid? userId = null, string? userEmail = null)
+        {
+            try
+            {
+                _db.AuditLogs.Add(new DocuTrack.Core.Models.AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    UserEmail = userEmail,
+                    Action = action,
+                    ResourceType = resourceType,
+                    ResourceId = resourceId,
+                    Details = details,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    Timestamp = DateTimeOffset.UtcNow,
+                });
+                await _db.SaveChangesAsync();
+            }
+            catch { }
         }
     }
 }

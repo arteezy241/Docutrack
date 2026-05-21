@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,8 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 // CORS
-
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -16,17 +15,71 @@ builder.Services.AddCors(options =>
                 "https://docutrack-frontend-gray.vercel.app",
                 "https://mheku.fyi",
                 "https://www.mheku.fyi",
-                "http://localhost:5173"           // ← add this
+                "http://localhost:5173"
             )
             .AllowAnyHeader()
-            .AllowAnyMethod()
-           ;
+            .AllowAnyMethod();
     });
 });
 
+// Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429;
+    options.RealIpHeader = "X-Real-IP";
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        // Global rule — max 100 requests per minute per IP
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 100,
+        },
+        // Auth endpoints — stricter limit to prevent brute force
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/login",
+            Period = "1m",
+            Limit = 10,
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/register",
+            Period = "1m",
+            Limit = 5,
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/verify-device",
+            Period = "1m",
+            Limit = 10,
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/google",
+            Period = "1m",
+            Limit = 10,
+        },
+        // OTP resend — very strict
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/auth/resend-otp",
+            Period = "5m",
+            Limit = 3,
+        },
+    };
+});
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
 
 builder.Services.AddSingleton<DocuTrack.Api.Services.FileService>();
-
 
 // Email Service
 builder.Services.AddSingleton<DocuTrack.Api.Services.EmailService>();
@@ -82,6 +135,33 @@ builder.Services.AddDbContext<DocuTrack.Infrastructure.Data.DocuTrackDbContext>(
 });
 
 var app = builder.Build();
+// Global exception handler — no stack traces exposed to users
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+
+        var exceptionFeature = context.Features
+            .Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+
+        if (exceptionFeature != null)
+        {
+            // Log the real error (visible in Railway logs)
+            Console.WriteLine($"[UNHANDLED ERROR] {exceptionFeature.Error}");
+
+            // Return safe generic message to client
+            await context.Response.WriteAsync(
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    error = "An unexpected error occurred. Please try again.",
+                    statusCode = 500
+                })
+            );
+        }
+    });
+});
 
 // Auto-migrate on startup
 using (var scope = app.Services.CreateScope())
@@ -92,23 +172,24 @@ using (var scope = app.Services.CreateScope())
     using var cmd = conn.CreateCommand();
 
     var alterCommands = new[]
-{
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Role\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsEmailVerified\" boolean NOT NULL DEFAULT false",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"EmailVerificationOtp\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"OtpExpiry\" timestamp with time zone",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginToken\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginExpiry\" timestamp with time zone",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
-    "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneNumber\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsPhoneVerified\" boolean NOT NULL DEFAULT false",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtp\" text",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtpExpiry\" timestamp with time zone",
-    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
-};
+    {
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordHash\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"Role\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsEmailVerified\" boolean NOT NULL DEFAULT false",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"EmailVerificationOtp\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"OtpExpiry\" timestamp with time zone",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginToken\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"QrLoginExpiry\" timestamp with time zone",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
+        "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneNumber\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsPhoneVerified\" boolean NOT NULL DEFAULT false",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtp\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtpExpiry\" timestamp with time zone",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
+        "CREATE TABLE IF NOT EXISTS \"AuditLogs\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"UserId\" uuid, \"UserEmail\" text, \"Action\" text NOT NULL, \"ResourceType\" text, \"ResourceId\" text, \"Details\" text, \"IpAddress\" text, \"Timestamp\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_AuditLogs\" PRIMARY KEY (\"Id\"))",
+    };
 
     foreach (var sql in alterCommands)
     {
@@ -117,7 +198,6 @@ using (var scope = app.Services.CreateScope())
     }
 
     conn.Close();
-    
     try { db.Database.Migrate(); } catch { }
 }
 
@@ -125,6 +205,7 @@ app.Urls.Add("http://0.0.0.0:" + (Environment.GetEnvironmentVariable("PORT") ?? 
 
 // Middleware pipeline — ORDER MATTERS
 app.UseCors("AllowFrontend");
+app.UseIpRateLimiting();         // ← rate limiting before everything else
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapOpenApi();

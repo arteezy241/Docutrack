@@ -97,12 +97,13 @@ namespace DocuTrack.Api.Controllers
 
             _db.Documents.Add(doc);
 
-            try { await _db.SaveChangesAsync(); }
+            try { await _db.SaveChangesAsync();
+            }
             catch (DbUpdateException)
             {
                 return BadRequest(new { error = "Failed to save document due to a data integrity error." });
             }
-
+            await LogAudit("DOCUMENT_CREATED", "Document", doc.Id.ToString(), doc.Title);
             await _db.Entry(doc).Reference(d => d.Owner).LoadAsync();
             return CreatedAtAction(nameof(GetOne), new { id = doc.Id }, doc);
         }
@@ -122,22 +123,44 @@ namespace DocuTrack.Api.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest(new { error = "No file provided." });
 
-            // only allow PDF and DOCX
-            var allowedTypes = new[] {
-                "application/pdf",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "application/msword"
-            };
-            if (!allowedTypes.Contains(file.ContentType))
-                return BadRequest(new { error = "Only PDF and DOCX files are allowed." });
+            // Allowed extensions
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx" };
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(ext))
+                return BadRequest(new { error = "Only PDF, DOC, and DOCX files are allowed." });
 
-            // max 10MB
+            // Max 10MB
             if (file.Length > 10 * 1024 * 1024)
                 return BadRequest(new { error = "File size must be under 10MB." });
 
+            // Magic byte validation — prevents disguised malicious files
+            var allowedSignatures = new Dictionary<string, byte[][]>
+    {
+        { ".pdf",  new[] { new byte[] { 0x25, 0x50, 0x44, 0x46 } } },
+        { ".doc",  new[] { new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 } } },
+        { ".docx", new[] { new byte[] { 0x50, 0x4B, 0x03, 0x04 } } },
+    };
+
+            using var stream = file.OpenReadStream();
+            var header = new byte[8];
+            int bytesRead = 0;
+            while (bytesRead < 8)
+            {
+                int read = await stream.ReadAsync(header.AsMemory(bytesRead, 8 - bytesRead));
+                if (read == 0) break;
+                bytesRead += read;
+            }
+            stream.Position = 0;
+            stream.Position = 0;
+
+            var validSignature = allowedSignatures[ext].Any(sig =>
+                header.Take(sig.Length).SequenceEqual(sig));
+
+            if (!validSignature)
+                return BadRequest(new { error = "File content does not match the expected format." });
+
             try
             {
-                // delete old file if exists
                 if (!string.IsNullOrEmpty(doc.FileUrl))
                     await _fileService.DeleteFileAsync(doc.FileUrl);
 
@@ -147,15 +170,15 @@ namespace DocuTrack.Api.Controllers
                 doc.UpdatedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync();
-
+                await LogAudit("FILE_UPLOADED", "Document", id.ToString(), file.FileName);
                 return Ok(new { fileUrl = doc.FileUrl, fileName = doc.FileName });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message });
+                Console.WriteLine($"[ERROR] FileUpload: {ex}");
+                return StatusCode(500, new { error = "File upload failed. Please try again." });
             }
         }
-
         /// <summary>
         /// Delete the file attached to a document.
         /// </summary>
@@ -175,6 +198,7 @@ namespace DocuTrack.Api.Controllers
             doc.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
+            await LogAudit("FILE_DELETED", "Document", id.ToString(), doc.FileName);
             return Ok(new { message = "File deleted." });
         }
         /// <summary>
@@ -193,7 +217,7 @@ namespace DocuTrack.Api.Controllers
 
             _db.Documents.Remove(doc);
             await _db.SaveChangesAsync();
-
+            await LogAudit("DOCUMENT_DELETED", "Document", id.ToString(), doc.Title);
             return NoContent();
         }
         public class UpdateStatusDto
@@ -228,8 +252,29 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(routingEvent);
             await _db.SaveChangesAsync();
-
+            await LogAudit("STATUS_UPDATED", "Document", id.ToString(), $"Status changed to {dto.Status}");
             return NoContent();
+        }
+      private async Task LogAudit(string action, string? resourceType = null,
+    string? resourceId = null, string? details = null, Guid? userId = null, string? userEmail = null)
+        {
+            try
+            {
+                _db.AuditLogs.Add(new DocuTrack.Core.Models.AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    UserEmail = userEmail,
+                    Action = action,
+                    ResourceType = resourceType,
+                    ResourceId = resourceId,
+                    Details = details,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    Timestamp = DateTimeOffset.UtcNow,
+                });
+                await _db.SaveChangesAsync();
+            }
+            catch { }
         }
     }
 }

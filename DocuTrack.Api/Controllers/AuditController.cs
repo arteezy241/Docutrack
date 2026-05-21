@@ -72,5 +72,50 @@ namespace DocuTrack.Api.Controllers
 
             return Ok(logs);
         }
+        /// <summary>
+        /// Gets system audit logs — Admin only.
+        /// </summary>
+        [HttpGet("system")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetSystemLogs(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            [FromQuery] string? action = null,
+            [FromQuery] string? userId = null)
+        {
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (role != "Admin") return Forbid();
+
+            var query = _db.AuditLogs.AsQueryable();
+
+            if (!string.IsNullOrEmpty(action))
+                query = query.Where(a => a.Action == action);
+
+            if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var uid))
+                query = query.Where(a => a.UserId == uid);
+
+            var total = await query.CountAsync();
+
+            var logs = await query
+                .OrderByDescending(a => a.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.UserId,
+                    a.UserEmail,
+                    a.Action,
+                    a.ResourceType,
+                    a.ResourceId,
+                    a.Details,
+                    a.IpAddress,
+                    a.Timestamp,
+                })
+                .ToListAsync();
+
+            return Ok(new { total, page, pageSize, logs });
+        }
     }
 }

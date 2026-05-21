@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -31,25 +32,161 @@ namespace DocuTrack.Api.Controllers
 
         public class RegisterDto
         {
+            [Required(ErrorMessage = "Full name is required.")]
+            [StringLength(100, MinimumLength = 2, ErrorMessage = "Full name must be between 2 and 100 characters.")]
             public string FullName { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "Username is required.")]
+            [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
+            [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores.")]
             public string Username { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            [StringLength(200, ErrorMessage = "Email must not exceed 200 characters.")]
             public string Email { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "Password is required.")]
+            [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+                ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, and one number.")]
             public string Password { get; set; } = string.Empty;
+
+            [StringLength(20, ErrorMessage = "Role must not exceed 20 characters.")]
             public string Role { get; set; } = "Staff";
         }
 
         public class LoginDto
         {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            [StringLength(200, ErrorMessage = "Email must not exceed 200 characters.")]
             public string Email { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "Password is required.")]
+            [StringLength(100, MinimumLength = 1, ErrorMessage = "Password is required.")]
+
             public string Password { get; set; } = string.Empty;
         }
 
         public class VerifyOtpDto
         {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
             public string Email { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "OTP is required.")]
+            [StringLength(6, MinimumLength = 6, ErrorMessage = "OTP must be exactly 6 digits.")]
+            [RegularExpression(@"^\d{6}$", ErrorMessage = "OTP must be exactly 6 digits.")]
             public string Otp { get; set; } = string.Empty;
         }
 
+        public class VerifyDeviceDto
+        {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            public string Email { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "OTP is required.")]
+            [StringLength(6, MinimumLength = 6, ErrorMessage = "OTP must be exactly 6 digits.")]
+            [RegularExpression(@"^\d{6}$", ErrorMessage = "OTP must be exactly 6 digits.")]
+            public string Otp { get; set; } = string.Empty;
+
+            public string? DeviceName { get; set; }
+        }
+
+        public class ResendOtpDto
+        {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            public string Email { get; set; } = string.Empty;
+        }
+        public class ForgotPasswordDto
+        {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            public string Email { get; set; } = string.Empty;
+        }
+
+        public class ResetPasswordDto
+        {
+            [Required(ErrorMessage = "Email is required.")]
+            [EmailAddress(ErrorMessage = "Invalid email format.")]
+            public string Email { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "OTP is required.")]
+            [StringLength(6, MinimumLength = 6, ErrorMessage = "OTP must be exactly 6 digits.")]
+            [RegularExpression(@"^\d{6}$", ErrorMessage = "OTP must be 6 digits.")]
+            public string Otp { get; set; } = string.Empty;
+
+            [Required(ErrorMessage = "New password is required.")]
+            [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+            [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+                ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
+            public string NewPassword { get; set; } = string.Empty;
+        }
+
+        /// <summary>
+        /// Sends a password reset OTP to the user's email.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+
+            // Always return success even if email not found (prevent email enumeration)
+            if (user == null)
+                return Ok(new { message = "If that email exists, a reset code has been sent." });
+
+            if (!user.IsActive)
+                return Ok(new { message = "If that email exists, a reset code has been sent." });
+
+            var otp = new Random().Next(100000, 999999).ToString();
+            user.EmailVerificationOtp = otp;
+            user.OtpExpiry = DateTime.UtcNow.AddMinutes(10);
+            await _db.SaveChangesAsync();
+
+            await _email.SendEmailAsync(user.Email!, "DocuTrack — Password Reset",
+                $@"<h2>Password Reset Request</h2>
+        <p>You requested to reset your DocuTrack password.</p>
+        <h1 style='color:#4F46E5;letter-spacing:8px'>{otp}</h1>
+        <p>This code expires in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email and secure your account.</p>");
+
+            return Ok(new { message = "If that email exists, a reset code has been sent." });
+        }
+
+        /// <summary>
+        /// Resets the user's password using the OTP sent to their email.
+        /// </summary>
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (user == null)
+                return BadRequest(new { error = "Invalid request." });
+
+            if (user.EmailVerificationOtp != dto.Otp)
+                return BadRequest(new { error = "Invalid or expired reset code." });
+
+            if (user.OtpExpiry < DateTime.UtcNow)
+                return BadRequest(new { error = "Reset code has expired. Please request a new one." });
+
+            // Update password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.EmailVerificationOtp = null;
+            user.OtpExpiry = null;
+
+            // Invalidate all trusted devices for security
+            var trustedDevices = await _db.TrustedDevices
+                .Where(d => d.UserId == user.Id)
+                .ToListAsync();
+            _db.TrustedDevices.RemoveRange(trustedDevices);
+
+            await _db.SaveChangesAsync();
+            await LogAudit("PASSWORD_RESET", "User", user.Id.ToString(), null, user.Id, user.Email);
+            return Ok(new { message = "Password reset successfully. Please log in with your new password." });
+        }
         public class QrLoginDto
         {
             public string Token { get; set; } = string.Empty;
@@ -92,6 +229,7 @@ namespace DocuTrack.Api.Controllers
                         {
                             trusted.LastUsedAt = DateTimeOffset.UtcNow;
                             await _db.SaveChangesAsync();
+                            
                             var token = GenerateJwt(user);
                             return Ok(new
                             {
@@ -116,6 +254,7 @@ namespace DocuTrack.Api.Controllers
 
                 // 2FA disabled — normal login
                 var jwt = GenerateJwt(user);
+                await LogAudit("LOGIN_SUCCESS", "User", user.Id.ToString(), null, user.Id, user.Email);
                 return Ok(new
                 {
                     token = jwt,
@@ -125,7 +264,8 @@ namespace DocuTrack.Api.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { error = "Invalid Google token: " + ex.Message });
+                Console.WriteLine($"[ERROR] GoogleLogin: {ex}");
+                return BadRequest(new { error = "Google sign-in failed. Please try again." });
             }
         }
 
@@ -241,7 +381,11 @@ namespace DocuTrack.Api.Controllers
                 return Unauthorized(new { error = "Email not verified. Please verify your email first." });
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+            {
+                await LogAudit("LOGIN_FAILED", "User", user.Id.ToString(), $"Wrong password for {dto.Email}", user.Id, user.Email);
                 return Unauthorized(new { error = "Invalid credentials." });
+            }
+
 
             if (!user.IsActive)
                 return Unauthorized(new { error = "Account is disabled." });
@@ -330,12 +474,7 @@ namespace DocuTrack.Api.Controllers
             });
         }
 
-        public class VerifyDeviceDto
-        {
-            public string Email { get; set; } = string.Empty;
-            public string Otp { get; set; } = string.Empty;
-            public string? DeviceName { get; set; }
-        }
+
 
         [Authorize]
         [HttpGet("trusted-devices")]
@@ -427,7 +566,7 @@ namespace DocuTrack.Api.Controllers
 
             user.IsTwoFactorEnabled = !user.IsTwoFactorEnabled;
             await _db.SaveChangesAsync();
-
+            await LogAudit("2FA_TOGGLED", "User", user.Id.ToString(), $"2FA {(user.IsTwoFactorEnabled ? "enabled" : "disabled")}", user.Id);
             return Ok(new { isTwoFactorEnabled = user.IsTwoFactorEnabled });
         }
         /// <summary>
@@ -506,10 +645,7 @@ namespace DocuTrack.Api.Controllers
             return Ok(new { message = "New OTP sent to your email." });
         }
 
-        public class ResendOtpDto
-        {
-            public string Email { get; set; } = string.Empty;
-        }
+        
 
         /// <summary>
         /// Creates a new QR session for login page display.
@@ -592,6 +728,31 @@ namespace DocuTrack.Api.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(new { message = "QR session confirmed." });
+        }
+        private async Task LogAudit(string action, string? resourceType = null,
+    string? resourceId = null, string? details = null, Guid? userId = null, string? userEmail = null)
+        {
+            try
+            {
+                var log = new DocuTrack.Core.Models.AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    UserEmail = userEmail,
+                    Action = action,
+                    ResourceType = resourceType,
+                    ResourceId = resourceId,
+                    Details = details,
+                    IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    Timestamp = DateTimeOffset.UtcNow,
+                };
+                _db.AuditLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // audit failure should never break the main flow
+            }
         }
 
         private string GenerateJwt(User user)
