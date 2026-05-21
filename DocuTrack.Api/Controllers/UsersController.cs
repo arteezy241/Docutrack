@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using DocuTrack.Core.Models;
+﻿using DocuTrack.Core.Models;
 using DocuTrack.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace DocuTrack.Api.Controllers
 {
@@ -145,6 +146,39 @@ namespace DocuTrack.Api.Controllers
         public class UpdatePhoneDto
         {
             public string? PhoneNumber { get; set; }
+        }
+        public class UpdateProfileDto
+        {
+            [Required]
+            [StringLength(100, MinimumLength = 2, ErrorMessage = "Full name must be between 2 and 100 characters.")]
+            public string FullName { get; set; } = string.Empty;
+
+            [Required]
+            [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
+            [RegularExpression(@"^[a-zA-Z0-9_]+$", ErrorMessage = "Username can only contain letters, numbers, and underscores.")]
+            public string Username { get; set; } = string.Empty;
+        }
+
+        [Authorize]
+        [HttpPatch("profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var user = await _db.Users.FindAsync(Guid.Parse(userId));
+            if (user == null) return NotFound();
+
+            // Check username not taken by another user
+            var usernameTaken = await _db.Users.AnyAsync(u => u.Username == dto.Username && u.Id != Guid.Parse(userId));
+            if (usernameTaken)
+                return BadRequest(new { error = "Username is already taken." });
+
+            user.FullName = dto.FullName;
+            user.Username = dto.Username;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled });
         }
     }
 }
