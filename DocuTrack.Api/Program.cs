@@ -103,6 +103,11 @@ using (var scope = app.Services.CreateScope())
     "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT true",
     "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp with time zone NOT NULL DEFAULT now()",
     "ALTER TABLE \"TrustedDevices\" ADD COLUMN IF NOT EXISTS \"DeviceToken\" text NOT NULL DEFAULT ''",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneNumber\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"IsPhoneVerified\" boolean NOT NULL DEFAULT false",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtp\" text",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtpExpiry\" timestamp with time zone",
+    "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
 };
 
     foreach (var sql in alterCommands)
