@@ -67,6 +67,8 @@ namespace DocuTrack.Api.Controllers
         {
             public string? Title { get; set; }
             public string? Content { get; set; }
+            public string? Type { get; set; }
+            public string? Description { get; set; }
             public Guid? OwnerId { get; set; }
 
             public DateTime? DueDate { get; set; }
@@ -93,9 +95,10 @@ namespace DocuTrack.Api.Controllers
                 Title = dto.Title,
                 Content = dto.Content,
                 OwnerId = dto.OwnerId,
+                DueDate = dto.DueDate,
                 Status = DocumentStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
-                DueDate = dto.DueDate,
+                
             };
 
             _db.Documents.Add(doc);
