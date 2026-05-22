@@ -190,6 +190,8 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtp\" text",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtpExpiry\" timestamp with time zone",
+        "CREATE TABLE IF NOT EXISTS \"Colleges\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"Name\" text NOT NULL, \"Code\" text NOT NULL, \"Description\" text, \"IsActive\" boolean NOT NULL DEFAULT true, \"CreatedAt\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_Colleges\" PRIMARY KEY (\"Id\"))",
+        "ALTER TABLE \"Departments\" ADD COLUMN IF NOT EXISTS \"CollegeId\" uuid REFERENCES \"Colleges\"(\"Id\")",
         "CREATE TABLE IF NOT EXISTS \"AuditLogs\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"UserId\" uuid, \"UserEmail\" text, \"Action\" text NOT NULL, \"ResourceType\" text, \"ResourceId\" text, \"Details\" text, \"IpAddress\" text, \"Timestamp\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_AuditLogs\" PRIMARY KEY (\"Id\"))",
     };
 

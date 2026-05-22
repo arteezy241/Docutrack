@@ -23,6 +23,8 @@ namespace DocuTrack.Api.Controllers
         {
             public string? Name { get; set; }
             public string? Description { get; set; }
+
+            public Guid? CollegeId { get; set; }
         }
 
         /// <summary>
@@ -33,8 +35,17 @@ namespace DocuTrack.Api.Controllers
         public async Task<ActionResult<IEnumerable<Department>>> GetAll()
         {
             var departments = await _db.Departments
-                .Include(d => d.Users)
-                .AsNoTracking()
+                .Include(d => d.College)
+                .OrderBy(d => d.Name)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.Name,
+                    d.Description,
+                    d.CollegeId,
+                    CollegeName = d.College != null ? d.College.Name : null,
+                    CollegeCode = d.College != null ? d.College.Code : null,
+                })
                 .ToListAsync();
             return Ok(departments);
         }
@@ -62,6 +73,7 @@ namespace DocuTrack.Api.Controllers
         {
             var dept = new Department
             {
+                CollegeId = dto.CollegeId,
                 Id = Guid.NewGuid(),
                 Name = dto.Name,
                 Description = dto.Description

@@ -9,7 +9,7 @@ namespace DocuTrack.Infrastructure.Data
             : base(options)
         {
         }
-
+        public DbSet<College> Colleges { get; set; }
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<RoutingEvent> RoutingEvents { get; set; } = null!;
