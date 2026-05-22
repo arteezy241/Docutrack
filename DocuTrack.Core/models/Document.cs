@@ -16,6 +16,6 @@ namespace DocuTrack.Core.Models
         public DateTime? UpdatedAt { get; set; }
         public string? FileUrl { get; set; }
         public string? FileName { get; set; }
-        //qweqwetqwteqwt
+        public DateTime? DueDate { get; set; }
     }
 }

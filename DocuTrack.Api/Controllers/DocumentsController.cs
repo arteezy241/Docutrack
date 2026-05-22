@@ -68,6 +68,8 @@ namespace DocuTrack.Api.Controllers
             public string? Title { get; set; }
             public string? Content { get; set; }
             public Guid? OwnerId { get; set; }
+
+            public DateTime? DueDate { get; set; }
         }
 
         /// <summary>
@@ -92,7 +94,8 @@ namespace DocuTrack.Api.Controllers
                 Content = dto.Content,
                 OwnerId = dto.OwnerId,
                 Status = DocumentStatus.Draft,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                DueDate = dto.DueDate,
             };
 
             _db.Documents.Add(doc);
@@ -275,6 +278,29 @@ namespace DocuTrack.Api.Controllers
                 await _db.SaveChangesAsync();
             }
             catch { }
+        }
+        /// <summary>
+        /// Update document due date.
+        /// </summary>
+        [HttpPatch("{id:guid}/due-date")]
+        public async Task<IActionResult> UpdateDueDate(Guid id, [FromBody] UpdateDueDateDto dto)
+        {
+            var doc = await _db.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            doc.DueDate = dto.DueDate;
+            doc.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            await LogAudit("DUE_DATE_SET", "Document", id.ToString(),
+                dto.DueDate.HasValue ? dto.DueDate.Value.ToString("yyyy-MM-dd") : "cleared");
+
+            return Ok(new { dueDate = doc.DueDate });
+        }
+
+        public class UpdateDueDateDto
+        {
+            public DateTime? DueDate { get; set; }
         }
     }
 }
