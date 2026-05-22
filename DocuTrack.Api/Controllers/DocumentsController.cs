@@ -109,7 +109,10 @@ namespace DocuTrack.Api.Controllers
             {
                 return BadRequest(new { error = "Failed to save document due to a data integrity error." });
             }
-            await LogAudit("DOCUMENT_CREATED", "Document", doc.Id.ToString(), doc.Title);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            await LogAudit("DOCUMENT_CREATED", "Document", doc.Id.ToString(), doc.Title,
+                userId != null ? Guid.Parse(userId) : null, userEmail);
             await _db.Entry(doc).Reference(d => d.Owner).LoadAsync();
             return CreatedAtAction(nameof(GetOne), new { id = doc.Id }, doc);
         }
@@ -176,7 +179,10 @@ namespace DocuTrack.Api.Controllers
                 doc.UpdatedAt = DateTime.UtcNow;
 
                 await _db.SaveChangesAsync();
-                await LogAudit("FILE_UPLOADED", "Document", id.ToString(), file.FileName);
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                await LogAudit("FILE_UPLOADED", "Document", id.ToString(), file.FileName,
+                     userId != null ? Guid.Parse(userId) : null, userEmail);
                 return Ok(new { fileUrl = doc.FileUrl, fileName = doc.FileName });
             }
             catch (Exception ex)
@@ -204,7 +210,10 @@ namespace DocuTrack.Api.Controllers
             doc.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-            await LogAudit("FILE_DELETED", "Document", id.ToString(), doc.FileName);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            await LogAudit("FILE_DELETED", "Document", id.ToString(), doc.FileName,
+               userId != null ? Guid.Parse(userId) : null, userEmail);
             return Ok(new { message = "File deleted." });
         }
         /// <summary>
@@ -223,7 +232,11 @@ namespace DocuTrack.Api.Controllers
 
             _db.Documents.Remove(doc);
             await _db.SaveChangesAsync();
-            await LogAudit("DOCUMENT_DELETED", "Document", id.ToString(), doc.Title);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            await LogAudit("DOCUMENT_DELETED", "Document", id.ToString(), doc.Title,
+                userId != null ? Guid.Parse(userId) : null, userEmail);
+
             return NoContent();
         }
         public class UpdateStatusDto
@@ -258,7 +271,10 @@ namespace DocuTrack.Api.Controllers
 
             _db.RoutingEvents.Add(routingEvent);
             await _db.SaveChangesAsync();
-            await LogAudit("STATUS_UPDATED", "Document", id.ToString(), $"Status changed to {dto.Status}");
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            await LogAudit("STATUS_UPDATED", "Document", id.ToString(), $"Status changed to {dto.Status}",
+             userId != null ? Guid.Parse(userId) : null, userEmail);
             return NoContent();
         }
       private async Task LogAudit(string action, string? resourceType = null,
@@ -294,9 +310,11 @@ namespace DocuTrack.Api.Controllers
             doc.DueDate = dto.DueDate;
             doc.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
-
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
             await LogAudit("DUE_DATE_SET", "Document", id.ToString(),
-                dto.DueDate.HasValue ? dto.DueDate.Value.ToString("yyyy-MM-dd") : "cleared");
+                dto.DueDate.HasValue ? dto.DueDate.Value.ToString("yyyy-MM-dd") : "cleared",
+                userId != null ? Guid.Parse(userId) : null, userEmail);
 
             return Ok(new { dueDate = doc.DueDate });
         }
