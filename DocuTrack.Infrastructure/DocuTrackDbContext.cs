@@ -10,6 +10,8 @@ namespace DocuTrack.Infrastructure.Data
         {
         }
         public DbSet<College> Colleges { get; set; }
+
+        public DbSet<RoutingTemplate> RoutingTemplates { get; set; }
         public DbSet<Document> Documents { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<RoutingEvent> RoutingEvents { get; set; } = null!;
