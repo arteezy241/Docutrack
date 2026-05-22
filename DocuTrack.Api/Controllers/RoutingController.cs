@@ -268,5 +268,34 @@ namespace DocuTrack.Api.Controllers
             }
             catch { }
         }
+        /// <summary>
+        /// Get all routing events pending for the current user.
+        /// </summary>
+        [Authorize]
+        [HttpGet("pending")]
+        public async Task<IActionResult> GetPendingApprovals()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null) return Unauthorized();
+
+            var pending = await _db.RoutingEvents
+                .Include(r => r.Document )
+                .Where(r => r.ToUserId == Guid.Parse(userId) &&
+                            r.StatusAfter != DocuTrack.Core.Models.DocumentStatus.Approved &&
+                            r.StatusAfter != DocuTrack.Core.Models.DocumentStatus.Rejected)
+                .OrderByDescending(r => r.Timestamp)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.DocumentId,
+                    DocTitle = r.Document != null ? r.Document.Title : null,
+                    r.Note,
+                    r.Timestamp,
+                    r.StatusAfter,
+                })
+                .ToListAsync();
+
+            return Ok(pending);
+        }
     }
 }

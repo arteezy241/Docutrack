@@ -11,5 +11,7 @@ namespace DocuTrack.Core.Models
         public DateTime Timestamp { get; set; }
         public string? Note { get; set; }
         public DocumentStatus? StatusAfter { get; set; }
+
+        public Document? Document { get; set; }
     }
 }
