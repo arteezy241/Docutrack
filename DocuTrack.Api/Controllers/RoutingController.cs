@@ -272,7 +272,7 @@ namespace DocuTrack.Api.Controllers
         /// Get all routing events pending for the current user.
         /// </summary>
         [Authorize]
-        [HttpGet("pending")]
+        [HttpGet("/api/routing/pending")]
         public async Task<IActionResult> GetPendingApprovals()
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
