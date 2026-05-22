@@ -190,6 +190,7 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtp\" text",
         "ALTER TABLE \"Documents\" ADD COLUMN IF NOT EXISTS \"DueDate\" timestamp with time zone",
+        "ALTER TABLE \"RoutingEvents\" ADD COLUMN IF NOT EXISTS \"DocumentId1\" uuid",
         "CREATE TABLE IF NOT EXISTS \"RoutingTemplates\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"Name\" text NOT NULL, \"Description\" text, \"StepsJson\" text NOT NULL DEFAULT '[]', \"CreatedById\" uuid NOT NULL, \"IsActive\" boolean NOT NULL DEFAULT true, \"CreatedAt\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_RoutingTemplates\" PRIMARY KEY (\"Id\"))",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtpExpiry\" timestamp with time zone",
         "CREATE TABLE IF NOT EXISTS \"Colleges\" (\"Id\" uuid NOT NULL DEFAULT gen_random_uuid(), \"Name\" text NOT NULL, \"Code\" text NOT NULL, \"Description\" text, \"IsActive\" boolean NOT NULL DEFAULT true, \"CreatedAt\" timestamptz NOT NULL DEFAULT now(), CONSTRAINT \"PK_Colleges\" PRIMARY KEY (\"Id\"))",
