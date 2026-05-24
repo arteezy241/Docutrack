@@ -15,6 +15,7 @@ builder.Services.AddCors(options =>
                 "https://docutrack-frontend-gray.vercel.app",
                 "https://mheku.fyi",
                 "https://www.mheku.fyi",
+                "https://api.mheku.fyi",
                 "http://localhost:5173"
             )
             .AllowAnyHeader()
