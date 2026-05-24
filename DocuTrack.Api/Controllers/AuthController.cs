@@ -314,6 +314,7 @@ namespace DocuTrack.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
+            Console.WriteLine($"[LOGIN CALLED] {DateTime.UtcNow}");
             if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
                 return BadRequest(new { error = "Email already registered." });
 
