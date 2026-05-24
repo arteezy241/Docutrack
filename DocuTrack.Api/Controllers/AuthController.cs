@@ -558,7 +558,8 @@ namespace DocuTrack.Api.Controllers
                         Secure = true,
                         SameSite = SameSiteMode.None,
                         MaxAge = TimeSpan.FromDays(90),
-                        Path = "/"
+                        Path = "/",
+                        Domain = ".mheku.fyi"
                     });
                     return Ok(new { message = "Already trusted." });
                 }
@@ -585,7 +586,8 @@ namespace DocuTrack.Api.Controllers
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 MaxAge = TimeSpan.FromDays(90),
-                Path = "/"
+                Path = "/",
+                Domain = ".mheku.fyi"
             });
             return Ok(new { message = "Device trusted." });
         }
@@ -607,11 +609,12 @@ namespace DocuTrack.Api.Controllers
             var currentToken = Request.Cookies[$"device_token_{device.UserId}"];
             if (currentToken == device.DeviceToken)
             {
-                Response.Cookies.Delete("device_token", new CookieOptions
+                Response.Cookies.Delete($"device_token_{device.UserId}", new CookieOptions
                 {
                     Secure = true,
                     SameSite = SameSiteMode.None,
-                    Path = "/"
+                    Path = "/",
+                    Domain = ".mheku.fyi"
                 });
             }
 
@@ -689,7 +692,8 @@ namespace DocuTrack.Api.Controllers
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 MaxAge = TimeSpan.FromDays(90),
-                Path = "/"
+                Path = "/",
+                Domain = ".mheku.fyi"
             });
 
             var token = GenerateJwt(user);
