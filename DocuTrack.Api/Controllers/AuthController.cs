@@ -136,8 +136,12 @@ namespace DocuTrack.Api.Controllers
                 ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
             public string NewPassword { get; set; } = string.Empty;
         }
+        public class TrustDeviceDto
+        {
+            public string? DeviceName { get; set; }
 
-        [Authorize]
+        }
+            [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
@@ -483,14 +487,27 @@ namespace DocuTrack.Api.Controllers
 
             // create trusted device
             var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            var detectedName = dto.DeviceName;
+            if (string.IsNullOrWhiteSpace(detectedName))
+            {
+                var ua = Request.Headers["User-Agent"].ToString();
+                if (ua.Contains("iPhone")) detectedName = "iPhone";
+                else if (ua.Contains("iPad")) detectedName = "iPad";
+                else if (ua.Contains("Android") && ua.Contains("Mobile")) detectedName = "Android Phone";
+                else if (ua.Contains("Android")) detectedName = "Android Tablet";
+                else if (ua.Contains("Macintosh")) detectedName = "Mac";
+                else if (ua.Contains("Windows")) detectedName = "Windows PC";
+                else if (ua.Contains("Linux")) detectedName = "Linux";
+                else detectedName = "Unknown Device";
+            }
+
             var device = new TrustedDevice
             {
-                Id = Guid.NewGuid(),
                 UserId = user.Id,
                 DeviceToken = deviceToken,
-                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
-                CreatedAt = DateTimeOffset.UtcNow,
-                LastUsedAt = DateTimeOffset.UtcNow,
+                DeviceName = detectedName,
+                CreatedAt = DateTime.UtcNow,
+                LastUsedAt = DateTime.UtcNow
             };
 
             _db.TrustedDevices.Add(device);
