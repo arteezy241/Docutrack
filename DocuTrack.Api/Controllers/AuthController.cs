@@ -252,6 +252,8 @@ namespace DocuTrack.Api.Controllers
                 if (user.IsTwoFactorEnabled)
                 {
                     var deviceToken = Request.Cookies[$"device_token_{user.Id}"];
+                    Console.WriteLine($"[DEBUG] Login for {user.Email}, userId={user.Id}, cookieKey=device_token_{user.Id}, cookieValue={deviceToken ?? "NULL"}");
+                    Console.WriteLine($"[DEBUG] All cookies: {string.Join(", ", Request.Cookies.Keys)}");
                     if (!string.IsNullOrEmpty(deviceToken))
                     {
                         var trusted = await _db.TrustedDevices
