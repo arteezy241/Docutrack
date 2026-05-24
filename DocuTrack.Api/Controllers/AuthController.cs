@@ -314,7 +314,7 @@ namespace DocuTrack.Api.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto dto)
         {
-            Console.Error.WriteLine($"[LOGIN CALLED] {DateTime.UtcNow}");
+            
             if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
                 return BadRequest(new { error = "Email already registered." });
 
@@ -408,6 +408,8 @@ namespace DocuTrack.Api.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto dto)
         {
+            Console.Error.WriteLine($"[LOGIN CALLED] {DateTime.UtcNow}");
+            Console.Error.WriteLine($"[COOKIES] {string.Join(", ", Request.Cookies.Keys)}");
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null) return Unauthorized(new { error = "Invalid credentials." });
 
