@@ -136,12 +136,8 @@ namespace DocuTrack.Api.Controllers
                 ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
             public string NewPassword { get; set; } = string.Empty;
         }
-        public class TrustDeviceDto
-        {
-            public string? DeviceName { get; set; }
 
-        }
-            [Authorize]
+        [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
@@ -255,7 +251,7 @@ namespace DocuTrack.Api.Controllers
                 // check 2FA
                 if (user.IsTwoFactorEnabled)
                 {
-                    var deviceToken = Request.Headers["X-Device-Token"].ToString();
+                    var deviceToken = Request.Cookies["device_token"];
                     if (!string.IsNullOrEmpty(deviceToken))
                     {
                         var trusted = await _db.TrustedDevices
@@ -428,7 +424,7 @@ namespace DocuTrack.Api.Controllers
             // check 2FA
             if (user.IsTwoFactorEnabled)
             {
-                var deviceToken = Request.Headers["X-Device-Token"].ToString();
+                var deviceToken = Request.Cookies["device_token"];
                 if (!string.IsNullOrEmpty(deviceToken))
                 {
                     var trusted = await _db.TrustedDevices
@@ -487,27 +483,14 @@ namespace DocuTrack.Api.Controllers
 
             // create trusted device
             var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
-            var detectedName = dto.DeviceName;
-            if (string.IsNullOrWhiteSpace(detectedName))
-            {
-                var ua = Request.Headers["User-Agent"].ToString();
-                if (ua.Contains("iPhone")) detectedName = "iPhone";
-                else if (ua.Contains("iPad")) detectedName = "iPad";
-                else if (ua.Contains("Android") && ua.Contains("Mobile")) detectedName = "Android Phone";
-                else if (ua.Contains("Android")) detectedName = "Android Tablet";
-                else if (ua.Contains("Macintosh")) detectedName = "Mac";
-                else if (ua.Contains("Windows")) detectedName = "Windows PC";
-                else if (ua.Contains("Linux")) detectedName = "Linux";
-                else detectedName = "Unknown Device";
-            }
-
             var device = new TrustedDevice
             {
+                Id = Guid.NewGuid(),
                 UserId = user.Id,
                 DeviceToken = deviceToken,
-                DeviceName = detectedName,
-                CreatedAt = DateTime.UtcNow,
-                LastUsedAt = DateTime.UtcNow
+                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastUsedAt = DateTimeOffset.UtcNow,
             };
 
             _db.TrustedDevices.Add(device);
@@ -536,13 +519,14 @@ namespace DocuTrack.Api.Controllers
                 .OrderByDescending(d => d.LastUsedAt)
                 .ToListAsync();
 
+            var currentToken = Request.Cookies["device_token"];
             return Ok(devices.Select(d => new
             {
                 d.Id,
                 d.DeviceName,
-                d.DeviceToken,
                 d.CreatedAt,
                 d.LastUsedAt,
+                isCurrent = d.DeviceToken == currentToken
             }));
         }
         [Authorize]
@@ -552,7 +536,7 @@ namespace DocuTrack.Api.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (userId == null) return Unauthorized();
 
-            var deviceToken = Request.Headers["X-Device-Token"].ToString();
+            var deviceToken = Request.Cookies["device_token"];
 
             // check if already trusted
             if (!string.IsNullOrEmpty(deviceToken))
@@ -563,7 +547,15 @@ namespace DocuTrack.Api.Controllers
                 {
                     existing.LastUsedAt = DateTimeOffset.UtcNow;
                     await _db.SaveChangesAsync();
-                    return Ok(new { deviceToken = existing.DeviceToken, message = "Already trusted." });
+                    Response.Cookies.Append("device_token", existing.DeviceToken, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
+                        MaxAge = TimeSpan.FromDays(90),
+                        Path = "/"
+                    });
+                    return Ok(new { message = "Already trusted." });
                 }
             }
 
@@ -582,7 +574,15 @@ namespace DocuTrack.Api.Controllers
             _db.TrustedDevices.Add(device);
             await _db.SaveChangesAsync();
 
-            return Ok(new { deviceToken = newDeviceToken, message = "Device trusted." });
+            Response.Cookies.Append("device_token", newDeviceToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                MaxAge = TimeSpan.FromDays(90),
+                Path = "/"
+            });
+            return Ok(new { message = "Device trusted." });
         }
         [Authorize]
         [HttpDelete("trusted-devices/{id:guid}")]
@@ -598,6 +598,17 @@ namespace DocuTrack.Api.Controllers
 
             _db.TrustedDevices.Remove(device);
             await _db.SaveChangesAsync();
+
+            var currentToken = Request.Cookies["device_token"];
+            if (currentToken == device.DeviceToken)
+            {
+                Response.Cookies.Delete("device_token", new CookieOptions
+                {
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Path = "/"
+                });
+            }
 
             return Ok(new { message = "Device removed." });
         }
@@ -654,21 +665,33 @@ namespace DocuTrack.Api.Controllers
             user.QrLoginToken = null;
             user.QrLoginExpiry = null;
             await _db.SaveChangesAsync();
+            var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+            var qrDevice = new TrustedDevice
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                DeviceToken = deviceToken,
+                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
+                CreatedAt = DateTimeOffset.UtcNow,
+                LastUsedAt = DateTimeOffset.UtcNow,
+            };
+            _db.TrustedDevices.Add(qrDevice);
+            await _db.SaveChangesAsync();
+
+            Response.Cookies.Append("device_token", deviceToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                MaxAge = TimeSpan.FromDays(90),
+                Path = "/"
+            });
 
             var token = GenerateJwt(user);
-
             return Ok(new
             {
                 token,
-                user = new
-                {
-                    user.Id,
-                    user.FullName,
-                    user.Username,
-                    user.Email,
-                    user.Role,
-                    user.DepartmentId
-                }
+                user = new { id = user.Id, fullName = user.FullName, username = user.Username, email = user.Email, role = user.Role, departmentId = user.DepartmentId, isTwoFactorEnabled = user.IsTwoFactorEnabled }
             });
         }
 
