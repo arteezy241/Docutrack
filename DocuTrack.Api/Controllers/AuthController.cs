@@ -251,7 +251,7 @@ namespace DocuTrack.Api.Controllers
                 // check 2FA
                 if (user.IsTwoFactorEnabled)
                 {
-                    var deviceToken = Request.Cookies["device_token"];
+                    var deviceToken = Request.Cookies[$"device_token_{user.Id}"];
                     if (!string.IsNullOrEmpty(deviceToken))
                     {
                         var trusted = await _db.TrustedDevices
@@ -547,7 +547,7 @@ namespace DocuTrack.Api.Controllers
                 {
                     existing.LastUsedAt = DateTimeOffset.UtcNow;
                     await _db.SaveChangesAsync();
-                    Response.Cookies.Append("device_token", existing.DeviceToken, new CookieOptions
+                    Response.Cookies.Append($"device_token_{userId}", existing.DeviceToken, new CookieOptions
                     {
                         HttpOnly = true,
                         Secure = true,
@@ -574,7 +574,7 @@ namespace DocuTrack.Api.Controllers
             _db.TrustedDevices.Add(device);
             await _db.SaveChangesAsync();
 
-            Response.Cookies.Append("device_token", newDeviceToken, new CookieOptions
+            Response.Cookies.Append($"device_token_{userId}", newDeviceToken, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
@@ -599,7 +599,7 @@ namespace DocuTrack.Api.Controllers
             _db.TrustedDevices.Remove(device);
             await _db.SaveChangesAsync();
 
-            var currentToken = Request.Cookies["device_token"];
+            var currentToken = Request.Cookies[$"device_token_{device.UserId}"];
             if (currentToken == device.DeviceToken)
             {
                 Response.Cookies.Delete("device_token", new CookieOptions
@@ -678,7 +678,7 @@ namespace DocuTrack.Api.Controllers
             _db.TrustedDevices.Add(qrDevice);
             await _db.SaveChangesAsync();
 
-            Response.Cookies.Append("device_token", deviceToken, new CookieOptions
+            Response.Cookies.Append($"device_token_{user.Id}", deviceToken, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
