@@ -429,7 +429,7 @@ namespace DocuTrack.Api.Controllers
             // check 2FA
             if (user.IsTwoFactorEnabled)
             {
-                var deviceToken = Request.Cookies["device_token"];
+                var deviceToken = Request.Cookies[$"device_token_{user.Id}"];
                 if (!string.IsNullOrEmpty(deviceToken))
                 {
                     var trusted = await _db.TrustedDevices
@@ -541,7 +541,7 @@ namespace DocuTrack.Api.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (userId == null) return Unauthorized();
 
-            var deviceToken = Request.Cookies["device_token"];
+            var deviceToken = Request.Cookies[$"device_token_{userId}"];
 
             // check if already trusted
             if (!string.IsNullOrEmpty(deviceToken))
