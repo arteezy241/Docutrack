@@ -279,19 +279,26 @@ namespace DocuTrack.Api.Controllers
             if (userId == null) return Unauthorized();
 
             var pending = await _db.RoutingEvents
-                .Include(r => r.Document )
-                .Where(r => r.ToUserId == Guid.Parse(userId) &&
-                            r.StatusAfter != DocuTrack.Core.Models.DocumentStatus.Approved &&
+                 .Include(r => r.Document)
+                 .Where(r => r.ToUserId == Guid.Parse(userId) &&
+                             r.StatusAfter != DocuTrack.Core.Models.DocumentStatus.Approved &&
                             r.StatusAfter != DocuTrack.Core.Models.DocumentStatus.Rejected)
                 .OrderByDescending(r => r.Timestamp)
                 .Select(r => new
                 {
                     r.Id,
                     r.DocumentId,
+                    r.FromUserId,
+                    r.ToUserId,
                     DocTitle = r.Document != null ? r.Document.Title : null,
                     r.Note,
                     r.Timestamp,
                     r.StatusAfter,
+                    FromUser = r.FromUserId != null ? _db.Users
+                        .Where(u => u.Id == r.FromUserId)
+                        .Select(u => new { u.Id, u.FullName, u.Username, u.Email })
+                        .FirstOrDefault() : null,
+                    Document = r.Document != null ? new { r.Document.Id, r.Document.Title, r.Document.Status } : null,
                 })
                 .ToListAsync();
 
