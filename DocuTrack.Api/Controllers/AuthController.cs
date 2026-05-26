@@ -486,20 +486,54 @@ namespace DocuTrack.Api.Controllers
             user.EmailVerificationOtp = null;
             user.OtpExpiry = null;
 
-            // create trusted device
-            var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
-            var device = new TrustedDevice
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                DeviceToken = deviceToken,
-                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
-                CreatedAt = DateTimeOffset.UtcNow,
-                LastUsedAt = DateTimeOffset.UtcNow,
-            };
+            // TRUE PER-DEVICE DEDUP: if this browser already carries a matching
+            // device_token_{userId} cookie, reuse that row instead of inserting a new one.
+            var existingToken = Request.Cookies[$"device_token_{user.Id}"];
+            TrustedDevice? device = null;
 
-            _db.TrustedDevices.Add(device);
+            if (!string.IsNullOrEmpty(existingToken))
+            {
+                device = await _db.TrustedDevices
+                    .FirstOrDefaultAsync(d => d.DeviceToken == existingToken && d.UserId == user.Id);
+            }
+
+            string deviceToken;
+            if (device != null)
+            {
+                // refresh the existing record — no duplicate created
+                deviceToken = device.DeviceToken;
+                device.DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString());
+                device.LastUsedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                // first verified login on this browser — create exactly one row
+                deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+                device = new TrustedDevice
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    DeviceToken = deviceToken,
+                    DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    LastUsedAt = DateTimeOffset.UtcNow,
+                };
+                _db.TrustedDevices.Add(device);
+            }
+
             await _db.SaveChangesAsync();
+
+            // CRITICAL: set the httpOnly cookie so future logins recognize this device
+            // and never re-trigger 2FA / create another row.
+            Response.Cookies.Append($"device_token_{user.Id}", deviceToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                MaxAge = TimeSpan.FromDays(90),
+                Path = "/",
+                Domain = ".mheku.fyi"
+            });
 
             var token = GenerateJwt(user);
             return Ok(new
@@ -523,8 +557,7 @@ namespace DocuTrack.Api.Controllers
                 .Where(d => d.UserId == Guid.Parse(userId))
                 .OrderByDescending(d => d.LastUsedAt)
                 .ToListAsync();
-
-            var currentToken = Request.Cookies["device_token"];
+            var currentToken = Request.Cookies[$"device_token_{userId}"]; var currentToken = Request.Cookies["device_token"];
             return Ok(devices.Select(d => new
             {
                 d.Id,
@@ -669,21 +702,39 @@ namespace DocuTrack.Api.Controllers
             if (user.QrLoginExpiry < DateTime.UtcNow)
                 return Unauthorized(new { error = "QR code expired. Please generate a new one." });
 
-            // Invalidate token after use
             user.QrLoginToken = null;
             user.QrLoginExpiry = null;
-            await _db.SaveChangesAsync();
-            var deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
-            var qrDevice = new TrustedDevice
+
+            // reuse existing device row if cookie matches (per-device dedup)
+            var qrExistingToken = Request.Cookies[$"device_token_{user.Id}"];
+            TrustedDevice? qrDevice = null;
+            if (!string.IsNullOrEmpty(qrExistingToken))
             {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                DeviceToken = deviceToken,
-                DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
-                CreatedAt = DateTimeOffset.UtcNow,
-                LastUsedAt = DateTimeOffset.UtcNow,
-            };
-            _db.TrustedDevices.Add(qrDevice);
+                qrDevice = await _db.TrustedDevices
+                    .FirstOrDefaultAsync(d => d.DeviceToken == qrExistingToken && d.UserId == user.Id);
+            }
+
+            string deviceToken;
+            if (qrDevice != null)
+            {
+                deviceToken = qrDevice.DeviceToken;
+                qrDevice.DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString());
+                qrDevice.LastUsedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                deviceToken = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
+                qrDevice = new TrustedDevice
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    DeviceToken = deviceToken,
+                    DeviceName = ParseDeviceName(Request.Headers["User-Agent"].ToString()),
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    LastUsedAt = DateTimeOffset.UtcNow,
+                };
+                _db.TrustedDevices.Add(qrDevice);
+            }
             await _db.SaveChangesAsync();
 
             Response.Cookies.Append($"device_token_{user.Id}", deviceToken, new CookieOptions
