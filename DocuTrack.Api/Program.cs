@@ -42,11 +42,11 @@ builder.Services.Configure<IpRateLimitOptions>(options =>
             Limit = 100,
         },
         // Auth endpoints — stricter limit to prevent brute force
-        new RateLimitRule
+           new RateLimitRule
         {
             Endpoint = "POST:/api/auth/login",
             Period = "1m",
-            Limit = 10,
+            Limit = 6,
         },
         new RateLimitRule
         {
