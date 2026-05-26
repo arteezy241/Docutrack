@@ -190,6 +190,8 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtp\" text",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PhoneOtpExpiry\" timestamp with time zone",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"TwoFactorMethod\" text",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"FailedLoginAttempts\" INTEGER NOT NULL DEFAULT 0;",
+        "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"LockoutUntil\" TIMESTAMP WITH TIME ZONE NULL;",
         "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"PasswordResetOtp\" text",
         "ALTER TABLE \"Documents\" ADD COLUMN IF NOT EXISTS \"DueDate\" timestamp with time zone",
         "ALTER TABLE \"RoutingEvents\" ADD COLUMN IF NOT EXISTS \"DocumentId1\" uuid",

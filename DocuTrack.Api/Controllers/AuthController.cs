@@ -416,11 +416,32 @@ namespace DocuTrack.Api.Controllers
             if (!user.IsEmailVerified)
                 return Unauthorized(new { error = "Email not verified. Please verify your email first." });
 
+            // check lockout before verifying password
+            if (user.LockoutUntil.HasValue && user.LockoutUntil > DateTime.UtcNow)
+            {
+                var minutesLeft = (int)Math.Ceiling((user.LockoutUntil.Value - DateTime.UtcNow).TotalMinutes);
+                return Unauthorized(new { error = $"Account locked. Try again in {minutesLeft} minute(s)." });
+            }
+
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             {
-                await LogAudit("LOGIN_FAILED", "User", user.Id.ToString(), $"Wrong password for {dto.Email}", user.Id, user.Email);
-                return Unauthorized(new { error = "Invalid credentials." });
+                user.FailedLoginAttempts++;
+                if (user.FailedLoginAttempts >= 5)
+                {
+                    user.LockoutUntil = DateTime.UtcNow.AddMinutes(15);
+                    user.FailedLoginAttempts = 0;
+                    await _db.SaveChangesAsync();
+                    await LogAudit("ACCOUNT_LOCKED", "User", user.Id.ToString(), $"Locked after 5 failed attempts", user.Id, user.Email);
+                    return Unauthorized(new { error = "Too many failed attempts. Account locked for 15 minutes." });
+                }
+                await _db.SaveChangesAsync();
+                await LogAudit("LOGIN_FAILED", "User", user.Id.ToString(), $"Wrong password for {dto.Email} ({user.FailedLoginAttempts}/5)", user.Id, user.Email);
+                return Unauthorized(new { error = $"Invalid credentials. {5 - user.FailedLoginAttempts} attempt(s) remaining." });
             }
+
+            // successful login — reset lockout counters
+            user.FailedLoginAttempts = 0;
+            user.LockoutUntil = null;
 
 
             if (!user.IsActive)
@@ -461,6 +482,7 @@ namespace DocuTrack.Api.Controllers
             }
 
             // 2FA disabled — normal login
+            await _db.SaveChangesAsync();
             var jwt = GenerateJwt(user);
             return Ok(new
             {
