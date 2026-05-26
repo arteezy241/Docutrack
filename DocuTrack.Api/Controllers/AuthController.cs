@@ -557,7 +557,7 @@ namespace DocuTrack.Api.Controllers
                 .Where(d => d.UserId == Guid.Parse(userId))
                 .OrderByDescending(d => d.LastUsedAt)
                 .ToListAsync();
-            var currentToken = Request.Cookies[$"device_token_{userId}"]; var currentToken = Request.Cookies["device_token"];
+            var currentToken = Request.Cookies[$"device_token_{userId}"]; 
             return Ok(devices.Select(d => new
             {
                 d.Id,
